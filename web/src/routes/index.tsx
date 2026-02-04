@@ -203,7 +203,7 @@ function Dashboard() {
 }
 
 function AnalysisRow({ analysis }: { analysis: Analysis }) {
-  const startAnalysis = useAction(api.analyses.startAnalysis);
+  const getFileUrl = useQuery(api.analyses.getFileUrl, { fileId: analysis.fileId as any });
   const [starting, setStarting] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
 
@@ -211,13 +211,34 @@ function AnalysisRow({ analysis }: { analysis: Analysis }) {
     setStarting(true);
     setConfigOpen(false);
     try {
+      if (!getFileUrl) {
+        throw new Error("File URL not available");
+      }
+
+      // For local development, call API directly from frontend
       const siteUrl = import.meta.env.VITE_CONVEX_SITE_URL;
       const callbackUrl = `${siteUrl}/analysis-webhook`;
-      await startAnalysis({
-        id: analysis._id,
-        callbackUrl,
-        config, // Pass user configuration
+
+      // Call API directly (bypass Convex action restriction on localhost)
+      const apiUrl = "http://localhost:3001";
+      const response = await fetch(`${apiUrl}/analyze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileUrl: getFileUrl,
+          analysisId: analysis._id,
+          callbackUrl,
+          config,
+        }),
       });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`API error: ${error}`);
+      }
+
+      const result = await response.json();
+      console.log("Analysis started:", result);
     } catch (err) {
       console.error("Failed to start analysis:", err);
       alert(err instanceof Error ? err.message : "Failed to start analysis");

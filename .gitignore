@@ -12,6 +12,9 @@ bun.lockb
 logs/
 *.log
 npm-debug.log*
+api.log
+convex.log
+web.log
 
 # Build outputs
 dist/

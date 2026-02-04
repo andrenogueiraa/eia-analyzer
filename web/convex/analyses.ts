@@ -17,6 +17,14 @@ export const get = query({
   },
 });
 
+// Get file URL from storage
+export const getFileUrl = query({
+  args: { fileId: v.id("_storage") },
+  handler: async (ctx, args) => {
+    return await ctx.storage.getUrl(args.fileId);
+  },
+});
+
 // Create new analysis
 export const create = mutation({
   args: {
@@ -60,6 +68,16 @@ export const startAnalysis = action({
   args: {
     id: v.id("analyses"),
     callbackUrl: v.string(),
+    config: v.optional(
+      v.object({
+        provider: v.string(),
+        model: v.string(),
+        temperature: v.number(),
+        maxTokens: v.number(),
+        enableThinking: v.boolean(),
+        thinkingBudget: v.number(),
+      })
+    ),
   },
   handler: async (ctx, args) => {
     // Get analysis record

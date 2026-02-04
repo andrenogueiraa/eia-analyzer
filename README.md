@@ -87,24 +87,42 @@ Siga as instruções para criar um projeto Convex.
 
 ## 🎯 Como Usar
 
-### 1. Iniciar os serviços
+### Opção 1: Comando Único (Recomendado)
+
+Inicie todos os serviços de uma vez:
+
+```bash
+# Usando bun (com concurrently)
+bun dev
+
+# OU usando script bash
+./dev.sh
+```
+
+Para parar todos os serviços:
+```bash
+./stop.sh
+# ou Ctrl+C
+```
+
+### Opção 2: Serviços Individuais
 
 **Terminal 1 - API de Análise:**
 ```bash
-cd api
-bun run api
+bun dev:api
+# ou: cd api && bun run api
 ```
 
 **Terminal 2 - Convex Dev:**
 ```bash
-cd web
-bunx convex dev
+bun dev:convex
+# ou: cd web && bunx convex dev
 ```
 
 **Terminal 3 - Web Interface:**
 ```bash
-cd web
-bun dev
+bun dev:web
+# ou: cd web && bun dev
 ```
 
 ### 2. Acessar a interface

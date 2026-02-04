@@ -1,0 +1,23 @@
+{
+  "name": "eia-analyzer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sistema de análise automatizada de Estudos de Impacto Ambiental (EIA) usando IA",
+  "scripts": {
+    "dev": "concurrently -n \"API,CONVEX,WEB\" -c \"cyan,magenta,green\" \"cd api && bun run api\" \"cd web && bunx convex dev\" \"cd web && bun dev\"",
+    "stop": "./stop.sh",
+    "dev:api": "cd api && bun run api",
+    "dev:convex": "cd web && bunx convex dev",
+    "dev:web": "cd web && bun dev",
+    "build": "cd web && bun run build",
+    "test": "cd api && bun run test",
+    "tsc": "cd web && bun tsc"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "engines": {
+    "bun": ">=1.0.0",
+    "node": ">=18.0.0"
+  }
+}
