@@ -1,0 +1,7 @@
+# Ignore compiled JavaScript files
+*.js
+*.js.map
+*.d.ts
+
+# But keep the _generated folder
+!_generated/

@@ -1,0 +1,26 @@
+{
+  "name": "analise-eia-ia",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "start": "bun run src/index.ts",
+    "analyze": "bun run src/index.ts",
+    "test": "bun run src/test-config.ts",
+    "api": "bun run src/api.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "cors": "^2.8.6",
+    "dotenv": "^16.4.5",
+    "express": "^5.2.1",
+    "openai": "^6.17.0",
+    "pdf-parse": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/pdf-parse": "^1.1.4"
+  }
+}
