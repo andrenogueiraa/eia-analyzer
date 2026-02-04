@@ -8,15 +8,40 @@ import type {
 } from "./types";
 import { config } from "./config";
 import { createAIProvider, type AIProvider } from "./ai-provider";
+import type { AnalysisConfig } from "./types";
 import { toolsLegal, toolsTecnico, toolsImpactos, toolsMitigacao } from "./tools";
 import { truncateText, estimateTokens } from "./extractor";
 
 export class AnalisadorEIA {
   private aiProvider: AIProvider;
   private fases: AnalisePorFase[] = [];
+  private analysisConfig?: AnalysisConfig;
 
-  constructor() {
-    this.aiProvider = createAIProvider();
+  constructor(provider?: AIProvider, analysisConfig?: AnalysisConfig) {
+    this.aiProvider = provider || createAIProvider();
+    this.analysisConfig = analysisConfig;
+  }
+
+  // Helper to get thinking budget - uses dynamic config or fallback to static
+  private getThinkingBudget(fase: keyof typeof config.thinkingBudgets): number | undefined {
+    if (!this.aiProvider.supportsThinking) return undefined;
+    if (this.analysisConfig?.enableThinking) {
+      return this.analysisConfig.thinkingBudget;
+    }
+    return config.thinkingBudgets[fase];
+  }
+
+  // Helper to get max tokens - uses dynamic config or fallback to static
+  private getMaxTokens(): number {
+    return this.analysisConfig?.maxTokens || config.maxTokensResposta;
+  }
+
+  // Get model info for metadata
+  private getModelInfo(): string {
+    if (this.analysisConfig) {
+      return `${this.analysisConfig.provider} - ${this.analysisConfig.model}`;
+    }
+    return `${config.provider} - ${config.models[config.provider as keyof typeof config.models]}`;
   }
 
   async analisar(documento: EIADocument): Promise<RelatorioFinal> {
@@ -107,8 +132,8 @@ Responda em formato estruturado JSON:
 
     const response = await this.aiProvider.generateResponse({
       messages: [{ role: "user", content: prompt }],
-      thinkingBudget: this.aiProvider.supportsThinking ? config.thinkingBudgets.fase1 : undefined,
-      maxTokens: config.maxTokensResposta,
+      thinkingBudget: this.getThinkingBudget("fase1"),
+      maxTokens: this.getMaxTokens(),
     });
 
     const duracao = Date.now() - inicio;
@@ -210,9 +235,9 @@ Seja EXTREMAMENTE rigoroso. Esta análise é crítica.`;
 
     const response = await this.aiProvider.generateResponse({
       messages: [{ role: "user", content: prompt }],
-      thinkingBudget: this.aiProvider.supportsThinking ? config.thinkingBudgets.fase2 : undefined,
+      thinkingBudget: this.getThinkingBudget("fase2"),
       tools: this.aiProvider.supportsTools ? toolsLegal : undefined,
-      maxTokens: config.maxTokensResposta,
+      maxTokens: this.getMaxTokens(),
     });
 
     const analise: AnaliseEspecializada = {
@@ -256,9 +281,9 @@ Seja crítico quanto a:
 
     const response = await this.aiProvider.generateResponse({
       messages: [{ role: "user", content: prompt }],
-      thinkingBudget: this.aiProvider.supportsThinking ? config.thinkingBudgets.fase2 : undefined,
+      thinkingBudget: this.getThinkingBudget("fase2"),
       tools: this.aiProvider.supportsTools ? toolsTecnico : undefined,
-      maxTokens: config.maxTokensResposta,
+      maxTokens: this.getMaxTokens(),
     });
 
     const analise: AnaliseEspecializada = {
@@ -302,9 +327,9 @@ Questione:
 
     const response = await this.aiProvider.generateResponse({
       messages: [{ role: "user", content: prompt }],
-      thinkingBudget: this.aiProvider.supportsThinking ? config.thinkingBudgets.fase2 : undefined,
+      thinkingBudget: this.getThinkingBudget("fase2"),
       tools: this.aiProvider.supportsTools ? toolsImpactos : undefined,
-      maxTokens: config.maxTokensResposta,
+      maxTokens: this.getMaxTokens(),
     });
 
     const analise: AnaliseEspecializada = {
@@ -348,9 +373,9 @@ Questione:
 
     const response = await this.aiProvider.generateResponse({
       messages: [{ role: "user", content: prompt }],
-      thinkingBudget: this.aiProvider.supportsThinking ? config.thinkingBudgets.fase2 : undefined,
+      thinkingBudget: this.getThinkingBudget("fase2"),
       tools: this.aiProvider.supportsTools ? toolsMitigacao : undefined,
-      maxTokens: config.maxTokensResposta,
+      maxTokens: this.getMaxTokens(),
     });
 
     const analise: AnaliseEspecializada = {
@@ -426,8 +451,8 @@ Responda em formato JSON:
 
     const response = await this.aiProvider.generateResponse({
       messages: [{ role: "user", content: prompt }],
-      thinkingBudget: this.aiProvider.supportsThinking ? config.thinkingBudgets.fase3 : undefined,
-      maxTokens: config.maxTokensResposta,
+      thinkingBudget: this.getThinkingBudget("fase3"),
+      maxTokens: this.getMaxTokens(),
     });
 
     const duracao = Date.now() - inicio;
@@ -527,8 +552,8 @@ IMPORTANTE:
 
     const response = await this.aiProvider.generateResponse({
       messages: [{ role: "user", content: prompt }],
-      thinkingBudget: this.aiProvider.supportsThinking ? config.thinkingBudgets.fase4 : undefined,
-      maxTokens: config.maxTokensResposta,
+      thinkingBudget: this.getThinkingBudget("fase4"),
+      maxTokens: this.getMaxTokens(),
     });
 
     const duracao = Date.now() - inicio;
@@ -551,7 +576,7 @@ IMPORTANTE:
       problemasCriticos: todosProblemasCriticos,
       recomendacoes,
       metadados: {
-        modeloUsado: `${config.provider} - ${config.models[config.provider as keyof typeof config.models]}`,
+        modeloUsado: this.getModelInfo(),
         thinkingTokensUsados: this.fases.reduce((acc, f) => acc + f.thinkingTokens, 0),
         tempoTotal,
       },

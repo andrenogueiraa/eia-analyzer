@@ -9,7 +9,7 @@ export interface EIADocument {
 export interface ContextoCompleto {
   estrutura: string;
   mapaRelacoes: string;
-  areascriticas: string[];
+  areasCriticas: string[];
   observacoes: string;
 }
 
@@ -47,20 +47,31 @@ export interface RelatorioFinal {
   };
 }
 
+export interface ToolInputSchema {
+  type: string;
+  properties: Record<string, unknown>;
+  required?: string[];
+}
+
 export interface ToolDefinition {
   name: string;
   description: string;
-  input_schema: {
-    type: string;
-    properties: Record<string, any>;
-    required?: string[];
-  };
+  input_schema: ToolInputSchema;
 }
 
 export interface AnalisePorFase {
   fase: number;
   nome: string;
-  resultado: any;
+  resultado: unknown;
   thinkingTokens: number;
   duracao: number;
+}
+
+export interface AnalysisConfig {
+  provider: string;
+  model: string;
+  temperature: number;
+  maxTokens: number;
+  enableThinking: boolean;
+  thinkingBudget: number;
 }

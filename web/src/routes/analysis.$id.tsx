@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
 import { api } from "@/../convex/_generated/api";
-import type { Analysis, AnalysisResult } from "@/types/convex";
+import type { AnalysisWithStudy, AnalysisResult, AnalysisConfig } from "@/types/convex";
+import type { Id } from "@/../convex/_generated/dataModel";
 import {
   ArrowLeft,
   Download,
@@ -10,6 +11,10 @@ import {
   XCircle,
   AlertTriangle,
   Sparkles,
+  Settings2,
+  Clock,
+  DollarSign,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,16 +35,24 @@ export const Route = createFileRoute("/analysis/$id")({
 
 function AnalysisDetailPage() {
   const { id } = Route.useParams();
-  const analysis = useQuery(api.analyses.get, { id }) as Analysis | undefined;
+  const analysis = useQuery(api.analyses.get, { id: id as Id<"analyses"> }) as AnalysisWithStudy | null | undefined;
+
+  if (analysis === undefined) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (!analysis) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <FileText className="mx-auto mb-4 h-16 w-16 text-muted-foreground/50" />
-          <h3 className="mb-2 text-lg font-semibold">Análise não encontrada</h3>
+          <h3 className="mb-2 text-lg font-semibold">Analise nao encontrada</h3>
           <p className="mb-4 text-sm text-muted-foreground">
-            A análise solicitada não existe ou foi removida
+            A analise solicitada nao existe ou foi removida
           </p>
           <Button asChild variant="outline">
             <Link to="/">
@@ -59,7 +72,8 @@ function AnalysisDetailPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${analysis.fileName.replace(".pdf", "")}-resultado.json`;
+    const fileName = analysis.study?.fileName || "analysis";
+    a.download = `${fileName.replace(".pdf", "")}-resultado.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -70,9 +84,18 @@ function AnalysisDetailPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${analysis.fileName.replace(".pdf", "")}-relatorio.md`;
+    const fileName = analysis.study?.fileName || "analysis";
+    a.download = `${fileName.replace(".pdf", "")}-relatorio.md`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const getDuration = () => {
+    if (!analysis.startedAt || !analysis.completedAt) return null;
+    const duration = analysis.completedAt - analysis.startedAt;
+    const minutes = Math.floor(duration / 60000);
+    const seconds = Math.floor((duration % 60000) / 1000);
+    return `${minutes}m ${seconds}s`;
   };
 
   return (
@@ -87,40 +110,63 @@ function AnalysisDetailPage() {
               </Link>
             </Button>
             <h1 className="text-3xl font-bold tracking-tight">
-              Detalhes da Análise
+              Detalhes da Analise
             </h1>
           </div>
-          <p className="text-muted-foreground">{analysis.fileName}</p>
+          {analysis.study && (
+            <p className="text-muted-foreground">
+              <Link
+                to="/study/$id"
+                params={{ id: analysis.study._id }}
+                className="hover:underline"
+              >
+                {analysis.study.fileName}
+              </Link>
+            </p>
+          )}
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleDownloadJSON}>
-            <Download className="mr-2 h-4 w-4" />
-            JSON
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleDownloadMarkdown}>
-            <Download className="mr-2 h-4 w-4" />
-            Markdown
-          </Button>
-        </div>
+        {analysis.status === "completed" && (
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleDownloadJSON}>
+              <Download className="mr-2 h-4 w-4" />
+              JSON
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleDownloadMarkdown}>
+              <Download className="mr-2 h-4 w-4" />
+              Markdown
+            </Button>
+          </div>
+        )}
       </div>
 
-      {/* File Info Card */}
+      {/* Config Card */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Informações do Arquivo
+            <Settings2 className="h-5 w-5" />
+            Configuracao da Analise
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-4">
-            <InfoItem label="Nome" value={analysis.fileName} />
-            <InfoItem label="Tamanho" value={formatBytes(analysis.fileSize)} />
-            <InfoItem
-              label="Data"
-              value={new Date(analysis.createdAt).toLocaleDateString("pt-BR")}
+          <div className="grid gap-4 md:grid-cols-6">
+            <ConfigItem label="Provedor" value={getProviderName(analysis.config.provider)} />
+            <ConfigItem label="Modelo" value={analysis.config.model} />
+            <ConfigItem label="Temperatura" value={analysis.config.temperature.toString()} />
+            <ConfigItem label="Max Tokens" value={analysis.config.maxTokens.toLocaleString()} />
+            <ConfigItem
+              label="Reasoning"
+              value={
+                analysis.config.enableThinking ? (
+                  <Badge variant="secondary" className="gap-1">
+                    <Sparkles className="h-3 w-3" />
+                    Ativo ({analysis.config.thinkingBudget.toLocaleString()})
+                  </Badge>
+                ) : (
+                  "Desativado"
+                )
+              }
             />
-            <InfoItem
+            <ConfigItem
               label="Status"
               value={<StatusBadge status={analysis.status} />}
             />
@@ -128,13 +174,57 @@ function AnalysisDetailPage() {
         </CardContent>
       </Card>
 
+      {/* Stats Card */}
+      {analysis.study && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Informacoes
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-5">
+              <InfoItem label="Arquivo" value={analysis.study.fileName} />
+              <InfoItem label="Tamanho" value={formatBytes(analysis.study.fileSize)} />
+              <InfoItem
+                label="Data"
+                value={new Date(analysis.createdAt).toLocaleDateString("pt-BR")}
+              />
+              {getDuration() && (
+                <InfoItem
+                  label="Duracao"
+                  value={
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-4 w-4" />
+                      {getDuration()}
+                    </span>
+                  }
+                />
+              )}
+              {analysis.cost && (
+                <InfoItem
+                  label="Custo"
+                  value={
+                    <span className="flex items-center gap-1">
+                      <DollarSign className="h-4 w-4" />
+                      ${analysis.cost.toFixed(2)}
+                    </span>
+                  }
+                />
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Processing State */}
       {analysis.status === "processing" && analysis.progress && (
         <Card className="border-blue-200 bg-blue-50/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-blue-900">
               <Sparkles className="h-5 w-5" />
-              Análise em Andamento
+              Analise em Andamento
             </CardTitle>
             <CardDescription>
               {analysis.progress.phaseName} - Fase {analysis.progress.phase} de 4
@@ -143,7 +233,7 @@ function AnalysisDetailPage() {
           <CardContent>
             <Progress value={analysis.progress.percentage} className="mb-2" />
             <p className="text-sm text-muted-foreground">
-              {analysis.progress.percentage}% concluído
+              {analysis.progress.percentage}% concluido
             </p>
           </CardContent>
         </Card>
@@ -155,7 +245,7 @@ function AnalysisDetailPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-red-900">
               <XCircle className="h-5 w-5" />
-              Erro na Análise
+              Erro na Analise
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -174,9 +264,9 @@ function AnalysisDetailPage() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <AlertTriangle className="mb-4 h-16 w-16 text-yellow-500" />
-            <h3 className="mb-2 text-lg font-semibold">Aguardando Análise</h3>
+            <h3 className="mb-2 text-lg font-semibold">Aguardando Analise</h3>
             <p className="mb-4 text-sm text-muted-foreground">
-              Esta análise ainda não foi iniciada
+              Esta analise ainda nao foi iniciada
             </p>
             <Button asChild>
               <Link to="/">Voltar ao Dashboard</Link>
@@ -212,14 +302,14 @@ function AnalysisResults({ result }: { result: AnalysisResult }) {
                 <div className="mb-1 text-2xl font-bold">
                   {result.classificacao}
                 </div>
-                <p className="text-sm text-muted-foreground">Classificação</p>
+                <p className="text-sm text-muted-foreground">Classificacao</p>
               </div>
               <div className="text-center">
                 <div className="mb-1 text-2xl font-bold">
                   {result.problemasCriticos || 0}
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Problemas Críticos
+                  Problemas Criticos
                 </p>
               </div>
             </div>
@@ -229,14 +319,14 @@ function AnalysisResults({ result }: { result: AnalysisResult }) {
 
       {/* Phases */}
       <div className="space-y-4">
-        <h2 className="text-2xl font-bold">Fases da Análise</h2>
+        <h2 className="text-2xl font-bold">Fases da Analise</h2>
 
         {/* Phase 1: Deep Reading */}
         {result.fase1 && (
           <PhaseCard
             number={1}
             title="Leitura Profunda"
-            description="Compreensão geral do documento"
+            description="Compreensao geral do documento"
             content={result.fase1}
           />
         )}
@@ -245,8 +335,8 @@ function AnalysisResults({ result }: { result: AnalysisResult }) {
         {result.fase2 && (
           <PhaseCard
             number={2}
-            title="Análise Especializada"
-            description="Análises paralelas de diferentes aspectos"
+            title="Analise Especializada"
+            description="Analises paralelas de diferentes aspectos"
             content={result.fase2}
           />
         )}
@@ -255,8 +345,8 @@ function AnalysisResults({ result }: { result: AnalysisResult }) {
         {result.fase3 && (
           <PhaseCard
             number={3}
-            title="Verificação Cruzada"
-            description="Validação entre análises especializadas"
+            title="Verificacao Cruzada"
+            description="Validacao entre analises especializadas"
             content={result.fase3}
           />
         )}
@@ -265,8 +355,8 @@ function AnalysisResults({ result }: { result: AnalysisResult }) {
         {result.fase4 && (
           <PhaseCard
             number={4}
-            title="Consolidação Final"
-            description="Relatório técnico completo"
+            title="Consolidacao Final"
+            description="Relatorio tecnico completo"
             content={result.fase4}
           />
         )}
@@ -276,7 +366,7 @@ function AnalysisResults({ result }: { result: AnalysisResult }) {
       {result.recomendacoes && result.recomendacoes.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Recomendações</CardTitle>
+            <CardTitle>Recomendacoes</CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">
@@ -303,7 +393,7 @@ function PhaseCard({
   number: number;
   title: string;
   description: string;
-  content: any;
+  content: unknown;
 }) {
   return (
     <Card>
@@ -340,11 +430,20 @@ function InfoItem({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
+function ConfigItem({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-sm text-muted-foreground">{label}</p>
+      <p className="font-medium">{value}</p>
+    </div>
+  );
+}
+
 function StatusBadge({ status }: { status: string }) {
   const config = {
     pending: { label: "Pendente", variant: "secondary" as const },
     processing: { label: "Processando", variant: "default" as const },
-    completed: { label: "Concluído", variant: "default" as const },
+    completed: { label: "Concluido", variant: "default" as const },
     failed: { label: "Falhou", variant: "destructive" as const },
   };
 
@@ -354,49 +453,66 @@ function StatusBadge({ status }: { status: string }) {
   return <Badge variant={variant}>{label}</Badge>;
 }
 
-function generateMarkdownReport(analysis: Analysis): string {
+function getProviderName(provider: string): string {
+  const names: Record<string, string> = {
+    deepseek: "DeepSeek",
+    openai: "OpenAI",
+    anthropic: "Anthropic",
+    openrouter: "OpenRouter",
+  };
+  return names[provider] || provider;
+}
+
+function generateMarkdownReport(analysis: AnalysisWithStudy): string {
   const result = analysis.result;
+  const fileName = analysis.study?.fileName || "Documento";
 
-  return `# Relatório de Análise EIA
+  return `# Relatorio de Analise EIA
 
-## Informações do Arquivo
-- **Nome:** ${analysis.fileName}
-- **Tamanho:** ${formatBytes(analysis.fileSize)}
+## Informacoes do Arquivo
+- **Nome:** ${fileName}
+- **Tamanho:** ${analysis.study ? formatBytes(analysis.study.fileSize) : "N/A"}
 - **Data:** ${new Date(analysis.createdAt).toLocaleDateString("pt-BR")}
 - **Status:** ${analysis.status}
 
+## Configuracao da Analise
+- **Provedor:** ${getProviderName(analysis.config.provider)}
+- **Modelo:** ${analysis.config.model}
+- **Temperatura:** ${analysis.config.temperature}
+- **Reasoning:** ${analysis.config.enableThinking ? "Ativo" : "Desativado"}
+
 ## Resultado Geral
-- **Nota:** ${result.notaGeral || "N/A"}/10
-- **Classificação:** ${result.classificacao || "N/A"}
-- **Problemas Críticos:** ${result.problemasCriticos || 0}
+- **Nota:** ${result?.notaGeral || "N/A"}/10
+- **Classificacao:** ${result?.classificacao || "N/A"}
+- **Problemas Criticos:** ${result?.problemasCriticos || 0}
 
 ---
 
 ## Fase 1: Leitura Profunda
-${typeof result.fase1 === "string" ? result.fase1 : JSON.stringify(result.fase1, null, 2)}
+${typeof result?.fase1 === "string" ? result.fase1 : JSON.stringify(result?.fase1, null, 2)}
 
 ---
 
-## Fase 2: Análise Especializada
-${typeof result.fase2 === "string" ? result.fase2 : JSON.stringify(result.fase2, null, 2)}
+## Fase 2: Analise Especializada
+${typeof result?.fase2 === "string" ? result.fase2 : JSON.stringify(result?.fase2, null, 2)}
 
 ---
 
-## Fase 3: Verificação Cruzada
-${typeof result.fase3 === "string" ? result.fase3 : JSON.stringify(result.fase3, null, 2)}
+## Fase 3: Verificacao Cruzada
+${typeof result?.fase3 === "string" ? result.fase3 : JSON.stringify(result?.fase3, null, 2)}
 
 ---
 
-## Fase 4: Consolidação Final
-${typeof result.fase4 === "string" ? result.fase4 : JSON.stringify(result.fase4, null, 2)}
+## Fase 4: Consolidacao Final
+${typeof result?.fase4 === "string" ? result.fase4 : JSON.stringify(result?.fase4, null, 2)}
 
 ---
 
-## Recomendações
-${result.recomendacoes?.map((r: string, i: number) => `${i + 1}. ${r}`).join("\n") || "Nenhuma recomendação disponível"}
+## Recomendacoes
+${result?.recomendacoes?.map((r: string, i: number) => `${i + 1}. ${r}`).join("\n") || "Nenhuma recomendacao disponivel"}
 
 ---
 
-*Relatório gerado automaticamente pelo EIA Analyzer*
+*Relatorio gerado automaticamente pelo EIA Analyzer*
 `;
 }

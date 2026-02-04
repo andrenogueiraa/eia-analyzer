@@ -20,15 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Zap, DollarSign, Settings2, ChevronDown, ChevronUp } from "lucide-react";
-
-interface AnalysisConfig {
-  provider: string;
-  model: string;
-  temperature: number;
-  maxTokens: number;
-  enableThinking: boolean;
-  thinkingBudget: number;
-}
+import type { AnalysisConfig } from "@/types/convex";
 
 interface AnalysisConfigDialogProps {
   open: boolean;

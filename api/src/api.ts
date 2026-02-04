@@ -1,17 +1,38 @@
 import express from "express";
 import cors from "cors";
-import { createWriteStream, unlinkSync } from "fs";
+import { createWriteStream, unlinkSync, appendFileSync } from "fs";
 import { pipeline } from "stream/promises";
 import { extractPDF } from "./extractor";
 import { AnalisadorEIA } from "./agents";
-import { createAIProvider } from "./ai-provider";
+import { createAIProvider, createAIProviderWithConfig } from "./ai-provider";
 import { config } from "./config";
+import type { AnalysisConfig } from "./types";
+
+// Log function that writes to file and console
+const logFile = "/tmp/api-analysis.log";
+function log(message: string) {
+  const timestamp = new Date().toISOString();
+  const line = `[${timestamp}] ${message}\n`;
+  console.log(message);
+  try {
+    appendFileSync(logFile, line);
+  } catch {}
+}
 
 const app = express();
 
 // Enable CORS for Convex
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+
+// Error handling for body parsing
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (err) {
+    console.error("Body parsing error:", err.message);
+    return res.status(400).json({ error: err.message });
+  }
+  next();
+});
 
 interface AnalysisProgress {
   phase: number;
@@ -26,7 +47,7 @@ let progressCallback: ((progress: AnalysisProgress) => Promise<void>) | null =
 // POST /analyze - Start analysis
 app.post("/analyze", async (req, res) => {
   try {
-    const { fileUrl, analysisId, callbackUrl } = req.body;
+    const { fileUrl, analysisId, callbackUrl, config: reqConfig } = req.body;
 
     if (!fileUrl || !analysisId) {
       return res.status(400).json({
@@ -49,8 +70,8 @@ app.post("/analyze", async (req, res) => {
       };
     }
 
-    // Start analysis in background
-    processAnalysis(fileUrl, analysisId, callbackUrl).catch((err) => {
+    // Start analysis in background with config
+    processAnalysis(fileUrl, analysisId, callbackUrl, reqConfig).catch((err) => {
       console.error("Analysis failed:", err);
     });
 
@@ -71,13 +92,14 @@ app.post("/analyze", async (req, res) => {
 async function processAnalysis(
   fileUrl: string,
   analysisId: string,
-  callbackUrl?: string
+  callbackUrl?: string,
+  analysisConfig?: AnalysisConfig
 ) {
   const tempFilePath = `/tmp/analysis-${analysisId}.pdf`;
 
   try {
     // Download file
-    console.log(`Downloading file from ${fileUrl}...`);
+    log(`Downloading file from ${fileUrl}...`);
     const response = await fetch(fileUrl);
     if (!response.ok) {
       throw new Error(`Failed to download file: ${response.statusText}`);
@@ -87,18 +109,26 @@ async function processAnalysis(
     await pipeline(response.body as any, fileStream);
 
     // Extract PDF
-    console.log("Extracting PDF...");
+    log("Extracting PDF...");
     await sendProgress(callbackUrl, analysisId, {
       phase: 1,
-      phaseName: "Extração do PDF",
+      phaseName: "Extracao do PDF",
       percentage: 10,
     });
     const documento = await extractPDF(tempFilePath);
+    log(`PDF extracted: ${documento.totalPages} pages, ${documento.rawText.length} chars`);
 
-    // Run analysis
-    console.log("Starting analysis...");
-    const provider = createAIProvider(config.provider);
-    const analisador = new AnalisadorEIA(provider);
+    // Run analysis with dynamic config or default
+    log("Starting analysis...");
+    if (analysisConfig) {
+      log(`Using config: provider=${analysisConfig.provider}, model=${analysisConfig.model}`);
+    }
+
+    const provider = analysisConfig
+      ? createAIProviderWithConfig(analysisConfig)
+      : createAIProvider();
+
+    const analisador = new AnalisadorEIA(provider, analysisConfig);
 
     // Phase 1: Deep Reading
     await sendProgress(callbackUrl, analysisId, {
@@ -106,37 +136,39 @@ async function processAnalysis(
       phaseName: "Leitura Profunda",
       percentage: 25,
     });
+    log("Calling analisador.analisar()...");
     const resultado = await analisador.analisar(documento);
+    log("Analysis returned successfully");
 
     // Phase 2: Specialized Analysis
     await sendProgress(callbackUrl, analysisId, {
       phase: 2,
-      phaseName: "Análise Especializada",
+      phaseName: "Analise Especializada",
       percentage: 50,
     });
 
     // Phase 3: Cross-validation
     await sendProgress(callbackUrl, analysisId, {
       phase: 3,
-      phaseName: "Verificação Cruzada",
+      phaseName: "Verificacao Cruzada",
       percentage: 75,
     });
 
     // Phase 4: Consolidation
     await sendProgress(callbackUrl, analysisId, {
       phase: 4,
-      phaseName: "Consolidação Final",
+      phaseName: "Consolidacao Final",
       percentage: 90,
     });
 
     // Send completion
-    console.log("Analysis complete!");
+    log("Analysis complete!");
     await sendCompletion(callbackUrl, analysisId, resultado);
 
     // Cleanup
     unlinkSync(tempFilePath);
   } catch (error) {
-    console.error("Analysis error:", error);
+    log(`Analysis error: ${error instanceof Error ? error.stack : error}`);
     await sendError(
       callbackUrl,
       analysisId,
@@ -224,7 +256,7 @@ app.get("/health", (req, res) => {
 const PORT = process.env.API_PORT || 3001;
 
 app.listen(PORT, () => {
-  console.log(`🚀 Analysis API running on http://localhost:${PORT}`);
-  console.log(`   Provider: ${config.provider}`);
-  console.log(`   Model: ${config.models[config.provider]}`);
+  console.log(`Analysis API running on http://localhost:${PORT}`);
+  console.log(`   Default Provider: ${config.provider}`);
+  console.log(`   Default Model: ${config.models[config.provider as keyof typeof config.models]}`);
 });
