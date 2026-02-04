@@ -28,6 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { formatBytes } from "@/lib/utils";
+import { getProviderName } from "@/lib/constants";
 
 export const Route = createFileRoute("/analysis/$id")({
   component: AnalysisDetailPage,
@@ -453,15 +454,6 @@ function StatusBadge({ status }: { status: string }) {
   return <Badge variant={variant}>{label}</Badge>;
 }
 
-function getProviderName(provider: string): string {
-  const names: Record<string, string> = {
-    deepseek: "DeepSeek",
-    openai: "OpenAI",
-    anthropic: "Anthropic",
-    openrouter: "OpenRouter",
-  };
-  return names[provider] || provider;
-}
 
 function generateMarkdownReport(analysis: AnalysisWithStudy): string {
   const result = analysis.result;

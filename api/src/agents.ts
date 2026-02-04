@@ -5,12 +5,140 @@ import type {
   VerificacaoCruzada,
   RelatorioFinal,
   AnalisePorFase,
+  ToolDefinition,
+  AnalysisConfig,
 } from "./types";
 import { config } from "./config";
 import { createAIProvider, type AIProvider } from "./ai-provider";
-import type { AnalysisConfig } from "./types";
 import { toolsLegal, toolsTecnico, toolsImpactos, toolsMitigacao } from "./tools";
 import { truncateText, estimateTokens } from "./extractor";
+
+// ============ CONFIGURAÇÃO DAS ANÁLISES ESPECIALIZADAS ============
+interface AnaliseConfig {
+  dominio: string;
+  analista: string;
+  emoji: string;
+  tools: ToolDefinition[];
+  buildPrompt: (contexto: ContextoCompleto, textoEIA: string) => string;
+}
+
+const ANALISES_ESPECIALIZADAS: AnaliseConfig[] = [
+  {
+    dominio: "Legal",
+    analista: "Agente Jurídico Ambiental",
+    emoji: "⚖️",
+    tools: toolsLegal,
+    buildPrompt: (contexto, textoEIA) => `Você é especialista em DIREITO AMBIENTAL BRASILEIRO.
+
+CONTEXTO DO DOCUMENTO (da leitura profunda):
+${JSON.stringify(contexto, null, 2)}
+
+EIA COMPLETO:
+${textoEIA}
+
+TAREFA: Analise METICULOSAMENTE a conformidade legal deste EIA.
+
+Verifique:
+1. Estrutura conforme Resolução CONAMA 001/86 e 237/97
+2. Todos os requisitos legais obrigatórios presentes
+3. Qualidade das informações fornecidas
+4. Referências legais corretas e atualizadas
+5. Processos administrativos seguidos corretamente
+
+Use as ferramentas disponíveis para:
+- Buscar legislação específica
+- Verificar conformidade com requisitos
+- Consultar precedentes
+
+Identifique:
+- ✅ Pontos conformes
+- ⚠️  Alertas e inconsistências
+- ❌ Não-conformidades graves
+
+Seja EXTREMAMENTE rigoroso. Esta análise é crítica.`,
+  },
+  {
+    dominio: "Técnico",
+    analista: "Agente Técnico Científico",
+    emoji: "🔧",
+    tools: toolsTecnico,
+    buildPrompt: (contexto, textoEIA) => `Você é especialista técnico em ESTUDOS AMBIENTAIS (biólogo, engenheiro ambiental).
+
+CONTEXTO: ${JSON.stringify(contexto, null, 2)}
+
+EIA: ${textoEIA}
+
+TAREFA: Avalie rigorosamente a QUALIDADE TÉCNICA deste EIA.
+
+Verifique:
+1. Metodologias científicas utilizadas (são adequadas?)
+2. Amostragem e coleta de dados (suficientes?)
+3. Análises estatísticas e cálculos (corretos?)
+4. Qualidade dos mapas e representações cartográficas
+5. Consistência dos dados apresentados
+6. Referências bibliográficas (atualizadas e relevantes?)
+
+Seja crítico quanto a:
+- Dados insuficientes ou mal coletados
+- Metodologias inadequadas ou desatualizadas
+- Conclusões não fundamentadas em dados
+- Análises superficiais`,
+  },
+  {
+    dominio: "Impactos Ambientais",
+    analista: "Agente Avaliador de Impactos",
+    emoji: "💥",
+    tools: toolsImpactos,
+    buildPrompt: (contexto, textoEIA) => `Você é especialista em IDENTIFICAÇÃO E AVALIAÇÃO DE IMPACTOS AMBIENTAIS.
+
+CONTEXTO: ${JSON.stringify(contexto, null, 2)}
+
+EIA: ${textoEIA}
+
+TAREFA: Analise a IDENTIFICAÇÃO e AVALIAÇÃO DE IMPACTOS.
+
+Verifique:
+1. Todos os impactos relevantes foram identificados?
+2. Impactos diretos, indiretos e cumulativos
+3. Avaliação de magnitude, importância e significância
+4. Impactos em diferentes fases (implantação, operação, desativação)
+5. Áreas de influência bem definidas
+6. Impactos socioeconômicos adequadamente avaliados
+
+Questione:
+- Há impactos subestimados ou ignorados?
+- A metodologia de avaliação é adequada?
+- Impactos sinérgicos foram considerados?
+- População afetada foi adequadamente considerada?`,
+  },
+  {
+    dominio: "Mitigação e Programas",
+    analista: "Agente de Medidas Mitigadoras",
+    emoji: "🛡️",
+    tools: toolsMitigacao,
+    buildPrompt: (contexto, textoEIA) => `Você é especialista em MEDIDAS MITIGADORAS E PROGRAMAS AMBIENTAIS.
+
+CONTEXTO: ${JSON.stringify(contexto, null, 2)}
+
+EIA: ${textoEIA}
+
+TAREFA: Avalie as MEDIDAS MITIGADORAS e PROGRAMAS AMBIENTAIS propostos.
+
+Verifique:
+1. Cada impacto identificado tem medida correspondente?
+2. Medidas são tecnicamente viáveis e eficazes?
+3. Programas ambientais bem estruturados?
+4. Indicadores de monitoramento adequados?
+5. Cronograma de implementação realista?
+6. Responsabilidades claras?
+
+Questione:
+- Medidas genéricas ou específicas?
+- Custo-benefício das medidas
+- Viabilidade de implementação
+- Eficácia esperada vs. impacto`,
+  },
+];
 
 export class AnalisadorEIA {
   private aiProvider: AIProvider;
@@ -185,202 +313,39 @@ Responda em formato estruturado JSON:
 
     const textoParaAnalise = truncateText(documento.rawText, 600000);
 
-    // Executar análises em paralelo
-    const promessas = [
-      this.analiseLegal(textoParaAnalise, contexto),
-      this.analiseTecnica(textoParaAnalise, contexto),
-      this.analiseImpactos(textoParaAnalise, contexto),
-      this.analiseMitigacao(textoParaAnalise, contexto),
-    ];
-
-    const analises = await Promise.all(promessas);
+    // Executar todas as análises em paralelo usando a função genérica
+    const analises = await Promise.all(
+      ANALISES_ESPECIALIZADAS.map((cfg) =>
+        this.executarAnaliseEspecializada(cfg, textoParaAnalise, contexto)
+      )
+    );
 
     console.log(`\n✓ Todas as análises especializadas concluídas`);
 
     return analises;
   }
 
-  private async analiseLegal(textoEIA: string, contexto: ContextoCompleto): Promise<AnaliseEspecializada> {
-    console.log(`\n  ⚖️  Análise Legal...`);
+  /** Função genérica para executar uma análise especializada */
+  private async executarAnaliseEspecializada(
+    cfg: AnaliseConfig,
+    textoEIA: string,
+    contexto: ContextoCompleto
+  ): Promise<AnaliseEspecializada> {
+    console.log(`\n  ${cfg.emoji}  Análise ${cfg.dominio}...`);
     const inicio = Date.now();
 
-    const prompt = `Você é especialista em DIREITO AMBIENTAL BRASILEIRO.
-
-CONTEXTO DO DOCUMENTO (da leitura profunda):
-${JSON.stringify(contexto, null, 2)}
-
-EIA COMPLETO:
-${textoEIA}
-
-TAREFA: Analise METICULOSAMENTE a conformidade legal deste EIA.
-
-Verifique:
-1. Estrutura conforme Resolução CONAMA 001/86 e 237/97
-2. Todos os requisitos legais obrigatórios presentes
-3. Qualidade das informações fornecidas
-4. Referências legais corretas e atualizadas
-5. Processos administrativos seguidos corretamente
-
-Use as ferramentas disponíveis para:
-- Buscar legislação específica
-- Verificar conformidade com requisitos
-- Consultar precedentes
-
-Identifique:
-- ✅ Pontos conformes
-- ⚠️  Alertas e inconsistências
-- ❌ Não-conformidades graves
-
-Seja EXTREMAMENTE rigoroso. Esta análise é crítica.`;
+    const prompt = cfg.buildPrompt(contexto, textoEIA);
 
     const response = await this.aiProvider.generateResponse({
       messages: [{ role: "user", content: prompt }],
       thinkingBudget: this.getThinkingBudget("fase2"),
-      tools: this.aiProvider.supportsTools ? toolsLegal : undefined,
+      tools: this.aiProvider.supportsTools ? cfg.tools : undefined,
       maxTokens: this.getMaxTokens(),
     });
 
     const analise: AnaliseEspecializada = {
-      dominio: "Legal",
-      analista: "Agente Jurídico Ambiental",
-      conteudo: response.content,
-      problemasCriticos: this.extrairProblemas(response.content, "❌"),
-      alertas: this.extrairProblemas(response.content, "⚠️"),
-      timestamp: new Date(),
-    };
-
-    console.log(`     ✓ Concluída em ${((Date.now() - inicio) / 1000).toFixed(1)}s`);
-    return analise;
-  }
-
-  private async analiseTecnica(textoEIA: string, contexto: ContextoCompleto): Promise<AnaliseEspecializada> {
-    console.log(`\n  🔧 Análise Técnica...`);
-    const inicio = Date.now();
-
-    const prompt = `Você é especialista técnico em ESTUDOS AMBIENTAIS (biólogo, engenheiro ambiental).
-
-CONTEXTO: ${JSON.stringify(contexto, null, 2)}
-
-EIA: ${textoEIA}
-
-TAREFA: Avalie rigorosamente a QUALIDADE TÉCNICA deste EIA.
-
-Verifique:
-1. Metodologias científicas utilizadas (são adequadas?)
-2. Amostragem e coleta de dados (suficientes?)
-3. Análises estatísticas e cálculos (corretos?)
-4. Qualidade dos mapas e representações cartográficas
-5. Consistência dos dados apresentados
-6. Referências bibliográficas (atualizadas e relevantes?)
-
-Seja crítico quanto a:
-- Dados insuficientes ou mal coletados
-- Metodologias inadequadas ou desatualizadas
-- Conclusões não fundamentadas em dados
-- Análises superficiais`;
-
-    const response = await this.aiProvider.generateResponse({
-      messages: [{ role: "user", content: prompt }],
-      thinkingBudget: this.getThinkingBudget("fase2"),
-      tools: this.aiProvider.supportsTools ? toolsTecnico : undefined,
-      maxTokens: this.getMaxTokens(),
-    });
-
-    const analise: AnaliseEspecializada = {
-      dominio: "Técnico",
-      analista: "Agente Técnico Científico",
-      conteudo: response.content,
-      problemasCriticos: this.extrairProblemas(response.content, "❌"),
-      alertas: this.extrairProblemas(response.content, "⚠️"),
-      timestamp: new Date(),
-    };
-
-    console.log(`     ✓ Concluída em ${((Date.now() - inicio) / 1000).toFixed(1)}s`);
-    return analise;
-  }
-
-  private async analiseImpactos(textoEIA: string, contexto: ContextoCompleto): Promise<AnaliseEspecializada> {
-    console.log(`\n  💥 Análise de Impactos...`);
-    const inicio = Date.now();
-
-    const prompt = `Você é especialista em IDENTIFICAÇÃO E AVALIAÇÃO DE IMPACTOS AMBIENTAIS.
-
-CONTEXTO: ${JSON.stringify(contexto, null, 2)}
-
-EIA: ${textoEIA}
-
-TAREFA: Analise a IDENTIFICAÇÃO e AVALIAÇÃO DE IMPACTOS.
-
-Verifique:
-1. Todos os impactos relevantes foram identificados?
-2. Impactos diretos, indiretos e cumulativos
-3. Avaliação de magnitude, importância e significância
-4. Impactos em diferentes fases (implantação, operação, desativação)
-5. Áreas de influência bem definidas
-6. Impactos socioeconômicos adequadamente avaliados
-
-Questione:
-- Há impactos subestimados ou ignorados?
-- A metodologia de avaliação é adequada?
-- Impactos sinérgicos foram considerados?
-- População afetada foi adequadamente considerada?`;
-
-    const response = await this.aiProvider.generateResponse({
-      messages: [{ role: "user", content: prompt }],
-      thinkingBudget: this.getThinkingBudget("fase2"),
-      tools: this.aiProvider.supportsTools ? toolsImpactos : undefined,
-      maxTokens: this.getMaxTokens(),
-    });
-
-    const analise: AnaliseEspecializada = {
-      dominio: "Impactos Ambientais",
-      analista: "Agente Avaliador de Impactos",
-      conteudo: response.content,
-      problemasCriticos: this.extrairProblemas(response.content, "❌"),
-      alertas: this.extrairProblemas(response.content, "⚠️"),
-      timestamp: new Date(),
-    };
-
-    console.log(`     ✓ Concluída em ${((Date.now() - inicio) / 1000).toFixed(1)}s`);
-    return analise;
-  }
-
-  private async analiseMitigacao(textoEIA: string, contexto: ContextoCompleto): Promise<AnaliseEspecializada> {
-    console.log(`\n  🛡️  Análise de Mitigação...`);
-    const inicio = Date.now();
-
-    const prompt = `Você é especialista em MEDIDAS MITIGADORAS E PROGRAMAS AMBIENTAIS.
-
-CONTEXTO: ${JSON.stringify(contexto, null, 2)}
-
-EIA: ${textoEIA}
-
-TAREFA: Avalie as MEDIDAS MITIGADORAS e PROGRAMAS AMBIENTAIS propostos.
-
-Verifique:
-1. Cada impacto identificado tem medida correspondente?
-2. Medidas são tecnicamente viáveis e eficazes?
-3. Programas ambientais bem estruturados?
-4. Indicadores de monitoramento adequados?
-5. Cronograma de implementação realista?
-6. Responsabilidades claras?
-
-Questione:
-- Medidas genéricas ou específicas?
-- Custo-benefício das medidas
-- Viabilidade de implementação
-- Eficácia esperada vs. impacto`;
-
-    const response = await this.aiProvider.generateResponse({
-      messages: [{ role: "user", content: prompt }],
-      thinkingBudget: this.getThinkingBudget("fase2"),
-      tools: this.aiProvider.supportsTools ? toolsMitigacao : undefined,
-      maxTokens: this.getMaxTokens(),
-    });
-
-    const analise: AnaliseEspecializada = {
-      dominio: "Mitigação e Programas",
-      analista: "Agente de Medidas Mitigadoras",
+      dominio: cfg.dominio,
+      analista: cfg.analista,
       conteudo: response.content,
       problemasCriticos: this.extrairProblemas(response.content, "❌"),
       alertas: this.extrairProblemas(response.content, "⚠️"),

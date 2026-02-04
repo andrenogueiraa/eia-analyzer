@@ -26,7 +26,7 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 // Error handling for body parsing
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
   if (err) {
     console.error("Body parsing error:", err.message);
     return res.status(400).json({ error: err.message });
@@ -106,7 +106,10 @@ async function processAnalysis(
     }
 
     const fileStream = createWriteStream(tempFilePath);
-    await pipeline(response.body as any, fileStream);
+    if (!response.body) {
+      throw new Error("Response body is null");
+    }
+    await pipeline(response.body, fileStream);
 
     // Extract PDF
     log("Extracting PDF...");
@@ -120,13 +123,14 @@ async function processAnalysis(
 
     // Run analysis with dynamic config or default
     log("Starting analysis...");
-    if (analysisConfig) {
-      log(`Using config: provider=${analysisConfig.provider}, model=${analysisConfig.model}`);
-    }
+    log(`Received config: ${JSON.stringify(analysisConfig)}`);
 
     const provider = analysisConfig
       ? createAIProviderWithConfig(analysisConfig)
       : createAIProvider();
+
+    log(`Created provider for: ${analysisConfig?.provider || "default (from .env)"}`);
+    log(`Provider type: ${provider.constructor.name}`);
 
     const analisador = new AnalisadorEIA(provider, analysisConfig);
 
@@ -182,70 +186,62 @@ async function processAnalysis(
   }
 }
 
-async function sendProgress(
+// ============ CALLBACK HELPERS ============
+
+type CallbackType = "progress" | "complete" | "error";
+
+interface CallbackPayload {
+  type: CallbackType;
+  analysisId: string;
+  progress?: AnalysisProgress;
+  result?: unknown;
+  error?: string;
+}
+
+/** Send callback to webhook URL */
+async function sendCallback(
+  callbackUrl: string | undefined,
+  payload: CallbackPayload
+): Promise<void> {
+  if (!callbackUrl) return;
+
+  try {
+    await fetch(callbackUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`Failed to send ${payload.type} callback:`, message);
+  }
+}
+
+/** Send progress update */
+function sendProgress(
   callbackUrl: string | undefined,
   analysisId: string,
   progress: AnalysisProgress
-) {
-  if (!callbackUrl) return;
-
-  try {
-    await fetch(callbackUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: "progress",
-        analysisId,
-        progress,
-      }),
-    });
-  } catch (err) {
-    console.error("Failed to send progress:", err);
-  }
+): Promise<void> {
+  return sendCallback(callbackUrl, { type: "progress", analysisId, progress });
 }
 
-async function sendCompletion(
+/** Send completion with result */
+function sendCompletion(
   callbackUrl: string | undefined,
   analysisId: string,
-  result: any
-) {
-  if (!callbackUrl) return;
-
-  try {
-    await fetch(callbackUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: "complete",
-        analysisId,
-        result,
-      }),
-    });
-  } catch (err) {
-    console.error("Failed to send completion:", err);
-  }
+  result: unknown
+): Promise<void> {
+  return sendCallback(callbackUrl, { type: "complete", analysisId, result });
 }
 
-async function sendError(
+/** Send error message */
+function sendError(
   callbackUrl: string | undefined,
   analysisId: string,
   error: string
-) {
-  if (!callbackUrl) return;
-
-  try {
-    await fetch(callbackUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: "error",
-        analysisId,
-        error,
-      }),
-    });
-  } catch (err) {
-    console.error("Failed to send error:", err);
-  }
+): Promise<void> {
+  return sendCallback(callbackUrl, { type: "error", analysisId, error });
 }
 
 // Health check

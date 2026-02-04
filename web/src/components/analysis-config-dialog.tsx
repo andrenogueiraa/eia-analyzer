@@ -21,54 +21,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Zap, DollarSign, Settings2, ChevronDown, ChevronUp } from "lucide-react";
 import type { AnalysisConfig } from "@/types/convex";
-
-interface AnalysisConfigDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onConfirm: (config: AnalysisConfig) => void;
-  loading?: boolean;
-}
-
-const PROVIDERS = {
-  deepseek: {
-    name: "DeepSeek",
-    models: [
-      { id: "deepseek-reasoner", name: "DeepSeek R1 (Reasoner)", reasoning: true },
-      { id: "deepseek-chat", name: "DeepSeek v3", reasoning: false },
-    ],
-    icon: "🧠",
-    color: "blue",
-  },
-  openai: {
-    name: "OpenAI",
-    models: [
-      { id: "gpt-4-turbo", name: "GPT-4 Turbo", reasoning: false },
-      { id: "gpt-4", name: "GPT-4", reasoning: false },
-      { id: "gpt-3.5-turbo", name: "GPT-3.5 Turbo", reasoning: false },
-    ],
-    icon: "🤖",
-    color: "green",
-  },
-  anthropic: {
-    name: "Anthropic",
-    models: [
-      { id: "claude-opus-4-5", name: "Claude Opus 4.5", reasoning: false },
-      { id: "claude-sonnet-4-5", name: "Claude Sonnet 4.5", reasoning: false },
-    ],
-    icon: "🎭",
-    color: "purple",
-  },
-  openrouter: {
-    name: "OpenRouter",
-    models: [
-      { id: "moonshotai/kimi-k2.5", name: "Kimi K2.5", reasoning: true },
-      { id: "google/gemini-2.0-flash-exp", name: "Gemini 2.0 Flash", reasoning: false },
-      { id: "qwen/qwen-2.5-72b-instruct", name: "Qwen 2.5 72B", reasoning: false },
-    ],
-    icon: "🌐",
-    color: "orange",
-  },
-};
+import { PROVIDERS, DEFAULT_ANALYSIS_CONFIG } from "@/lib/constants";
 
 export function AnalysisConfigDialog({
   open,
@@ -77,12 +30,7 @@ export function AnalysisConfigDialog({
   loading = false,
 }: AnalysisConfigDialogProps) {
   const [config, setConfig] = useState<AnalysisConfig>({
-    provider: "deepseek",
-    model: "deepseek-reasoner",
-    temperature: 0.3,
-    maxTokens: 16000,
-    enableThinking: true,
-    thinkingBudget: 5000,
+    ...DEFAULT_ANALYSIS_CONFIG,
   });
   const [showAdvanced, setShowAdvanced] = useState(false);
 

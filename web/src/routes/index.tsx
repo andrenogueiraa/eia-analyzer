@@ -21,6 +21,7 @@ import {
 import { UploadZone } from "@/components/upload-zone";
 import { AnalysisConfigDialog } from "@/components/analysis-config-dialog";
 import { formatBytes } from "@/lib/utils";
+import { getModelDisplayName } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -411,14 +412,8 @@ function AnalysisRow({ analysis }: { analysis: Analysis }) {
   const removeAnalysis = useMutation(api.analyses.remove);
   const [retrying, setRetrying] = useState(false);
 
-  const getModelDisplayName = (config: AnalysisConfig) => {
-    const providerNames: Record<string, string> = {
-      deepseek: "DeepSeek",
-      openai: "OpenAI",
-      anthropic: "Anthropic",
-      openrouter: "OpenRouter",
-    };
-    return `${providerNames[config.provider] || config.provider} / ${config.model}`;
+  const getModelName = (config: AnalysisConfig) => {
+    return getModelDisplayName(config.provider, config.model);
   };
 
   const handleRetry = async () => {
@@ -445,7 +440,7 @@ function AnalysisRow({ analysis }: { analysis: Analysis }) {
     <TableRow>
       <TableCell>
         <div className="font-medium text-sm">
-          {getModelDisplayName(analysis.config)}
+          {getModelName(analysis.config)}
         </div>
         {analysis.config.enableThinking && (
           <Badge variant="secondary" className="text-xs mt-1">
