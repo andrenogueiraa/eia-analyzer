@@ -1,7 +1,8 @@
 import { useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { Upload } from "lucide-react";
-import { cn } from "../lib/utils";
+import { cn } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
 
 interface UploadZoneProps {
   onUpload: (file: File) => void;
@@ -27,29 +28,42 @@ export function UploadZone({ onUpload, disabled }: UploadZoneProps) {
   });
 
   return (
-    <div
+    <Card
       {...getRootProps()}
       className={cn(
-        "border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors",
-        isDragActive && "border-green-600 bg-green-50",
-        !isDragActive && "border-gray-300 hover:border-green-600",
-        disabled && "opacity-50 cursor-not-allowed"
+        "border-2 border-dashed cursor-pointer transition-all hover:border-primary/50",
+        isDragActive && "border-primary bg-primary/5 scale-105",
+        disabled && "opacity-50 cursor-not-allowed hover:border-border"
       )}
     >
       <input {...getInputProps()} />
-      <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-      {isDragActive ? (
-        <p className="text-lg">Solte o PDF aqui...</p>
-      ) : (
-        <>
-          <p className="text-lg mb-2 font-medium">
-            Arraste um PDF aqui, ou clique para selecionar
-          </p>
-          <p className="text-sm text-gray-500">
-            Apenas arquivos PDF, máximo 50MB
-          </p>
-        </>
-      )}
-    </div>
+      <div className="flex flex-col items-center justify-center p-12 text-center">
+        <div
+          className={cn(
+            "mb-4 rounded-full bg-primary/10 p-4 transition-colors",
+            isDragActive && "bg-primary/20"
+          )}
+        >
+          <Upload
+            className={cn(
+              "h-8 w-8 text-primary transition-transform",
+              isDragActive && "scale-110"
+            )}
+          />
+        </div>
+        {isDragActive ? (
+          <p className="text-lg font-medium">Solte o PDF aqui...</p>
+        ) : (
+          <>
+            <p className="mb-2 text-lg font-medium">
+              Arraste um PDF aqui, ou clique para selecionar
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Apenas arquivos PDF, máximo 50MB
+            </p>
+          </>
+        )}
+      </div>
+    </Card>
   );
 }

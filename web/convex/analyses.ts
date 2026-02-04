@@ -1,6 +1,6 @@
 import { mutation, query, action, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
-import { api, internal } from "./_generated/api";
+import { api } from "./_generated/api";
 
 // Get all analyses
 export const list = query({

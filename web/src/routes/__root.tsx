@@ -1,48 +1,54 @@
 import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/router-devtools";
 import { Leaf } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export const Route = createRootRoute({
   component: () => (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen">
       {/* Header */}
-      <header className="bg-white">
-        <div className="container flex items-center justify-between px-4 py-4 mx-auto">
+      <header>
+        <div className="container flex items-center justify-between h-16 px-4 mx-auto">
           <Link
             to="/"
-            className="flex items-center gap-2 text-xl font-bold hover:text-green-600"
+            className="flex items-center gap-2 text-xl font-bold transition-opacity hover:opacity-80"
           >
-            <Leaf className="w-6 h-6 text-green-600" />
+            <div className="p-2 rounded-lg bg-green-500/10">
+              <Leaf className="w-5 h-5 text-green-600" />
+            </div>
             <span>EIA Analyzer</span>
           </Link>
-          <nav className="flex gap-6">
-            <Link
-              to="/"
-              className="transition-colors hover:text-green-600"
-              activeProps={{ className: "text-green-600 font-semibold" }}
-            >
-              Dashboard
+
+          <nav className="flex items-center gap-2">
+            <Link to="/">
+              {({ isActive }) => (
+                <Button variant={isActive ? "default" : "ghost"} size="sm">
+                  Dashboard
+                </Button>
+              )}
             </Link>
-            <Link
-              to="/about"
-              className="transition-colors hover:text-green-600"
-              activeProps={{ className: "text-green-600 font-semibold" }}
-            >
-              About
+            <Link to="/about">
+              {({ isActive }) => (
+                <Button variant={isActive ? "default" : "ghost"} size="sm">
+                  About
+                </Button>
+              )}
             </Link>
           </nav>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="container px-4 py-8 mx-auto">
+      <main className="container flex-1 px-4 py-8 mx-auto">
         <Outlet />
       </main>
 
       {/* Footer */}
-      <footer className="mt-auto">
-        <div className="container px-4 py-6 mx-auto text-sm text-center text-gray-600">
-          Built with ❤️ using Bun + React + Convex + DeepSeek AI
+      <footer>
+        <div className="container px-4 py-6 mx-auto">
+          <p className="text-sm text-center text-muted-foreground">
+            criado por André Nogueira
+          </p>
         </div>
       </footer>
 

@@ -1,94 +1,155 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { Leaf, Zap, Shield, TrendingUp } from 'lucide-react'
+import { createFileRoute } from "@tanstack/react-router";
+import { Leaf, Zap, Database, BarChart3, Shield, Sparkles } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
-export const Route = createFileRoute('/about')({
-  component: About,
-})
+export const Route = createFileRoute("/about")({
+  component: AboutPage,
+});
 
-function About() {
+function AboutPage() {
   return (
-    <div className="max-w-4xl mx-auto">
-      <h1 className="text-4xl font-bold text-gray-900 mb-4">
-        Sobre o EIA Analyzer
-      </h1>
-      <p className="text-xl text-gray-600 mb-12">
-        Análise automatizada de Estudos de Impacto Ambiental usando IA
-      </p>
-
-      {/* Features Grid */}
-      <div className="grid md:grid-cols-2 gap-6 mb-12">
-        <FeatureCard
-          icon={<Zap className="h-8 w-8" />}
-          title="Análise Rápida"
-          description="Análise completa em 3-4 minutos. 4 fases especializadas com reasoning profundo."
-        />
-        <FeatureCard
-          icon={<Shield className="h-8 w-8" />}
-          title="Alta Qualidade"
-          description="DeepSeek R1 com reasoning nativo. Identifica problemas críticos e inconsistências."
-        />
-        <FeatureCard
-          icon={<TrendingUp className="h-8 w-8" />}
-          title="Custo Baixo"
-          description="~$5-8 por análise de 100 páginas. 10x mais barato que alternativas."
-        />
-        <FeatureCard
-          icon={<Leaf className="h-8 w-8" />}
-          title="Especializado"
-          description="4 agentes especializados: Legal, Técnico, Impactos e Mitigação."
-        />
-      </div>
-
-      {/* Tech Stack */}
-      <div className="bg-white rounded-lg border p-8 mb-12">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">
-          Tecnologias
-        </h2>
-        <div className="grid md:grid-cols-2 gap-4">
-          <TechItem name="Frontend" tech="React 19 + TanStack Router" />
-          <TechItem name="Backend" tech="Convex (serverless)" />
-          <TechItem name="IA" tech="DeepSeek R1 (reasoning)" />
-          <TechItem name="Styling" tech="Tailwind CSS" />
-          <TechItem name="Runtime" tech="Bun" />
-          <TechItem name="Database" tech="Convex (real-time)" />
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="rounded-lg bg-green-500/10 p-3">
+            <Leaf className="h-8 w-8 text-green-600" />
+          </div>
+          <div>
+            <h1 className="text-4xl font-bold tracking-tight">EIA Analyzer</h1>
+            <p className="text-muted-foreground">
+              Sistema de análise automatizada de Estudos de Impacto Ambiental
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* How It Works */}
-      <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-lg p-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">
-          Como Funciona
-        </h2>
-        <ol className="space-y-4">
-          <Step
-            number={1}
-            title="Upload"
-            description="Faça upload do PDF do EIA. Armazenado de forma segura no Convex."
+      <Separator />
+
+      {/* Features */}
+      <div className="space-y-4">
+        <h2 className="text-2xl font-bold tracking-tight">Recursos</h2>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <FeatureCard
+            icon={<Zap className="h-5 w-5" />}
+            title="Análise Rápida"
+            description="Processa PDFs de até 50MB em minutos usando IA avançada"
           />
-          <Step
-            number={2}
-            title="Fase 1: Leitura Profunda"
-            description="IA lê documento completo, mapeia estrutura e identifica áreas críticas."
+          <FeatureCard
+            icon={<Sparkles className="h-5 w-5" />}
+            title="IA Reasoning"
+            description="Utiliza DeepSeek R1 com capacidade de raciocínio profundo"
           />
-          <Step
-            number={3}
-            title="Fase 2: Análises Especializadas"
-            description="4 agentes analisam em paralelo: Legal, Técnico, Impactos e Mitigação."
+          <FeatureCard
+            icon={<Database className="h-5 w-5" />}
+            title="Real-time"
+            description="Acompanhe o progresso da análise em tempo real"
           />
-          <Step
-            number={4}
-            title="Fase 3: Verificação Cruzada"
-            description="Valida consistência, detecta contradições e identifica lacunas."
+          <FeatureCard
+            icon={<BarChart3 className="h-5 w-5" />}
+            title="4 Fases"
+            description="Análise completa em múltiplas etapas especializadas"
           />
-          <Step
-            number={5}
-            title="Fase 4: Consolidação"
-            description="Gera relatório técnico completo com problemas priorizados."
+          <FeatureCard
+            icon={<Shield className="h-5 w-5" />}
+            title="Conformidade"
+            description="Verifica aspectos legais e técnicos automaticamente"
           />
-        </ol>
+          <FeatureCard
+            icon={<Leaf className="h-5 w-5" />}
+            title="Impacto Ambiental"
+            description="Avalia impactos e medidas mitigadoras"
+          />
+        </div>
       </div>
+
+      <Separator />
+
+      {/* How it Works */}
+      <div className="space-y-4">
+        <h2 className="text-2xl font-bold tracking-tight">Como Funciona</h2>
+        <div className="space-y-4">
+          <ProcessStep
+            number={1}
+            title="Upload do PDF"
+            description="Arraste e solte ou selecione um arquivo PDF do EIA (até 50MB)"
+          />
+          <ProcessStep
+            number={2}
+            title="Leitura Profunda"
+            description="O sistema extrai e analisa o conteúdo completo do documento"
+          />
+          <ProcessStep
+            number={3}
+            title="Análise Especializada"
+            description="4 análises paralelas: Legal, Técnica, Impactos e Mitigação"
+          />
+          <ProcessStep
+            number={4}
+            title="Verificação Cruzada"
+            description="Validação entre as diferentes análises para garantir consistência"
+          />
+          <ProcessStep
+            number={5}
+            title="Relatório Final"
+            description="Consolidação com notas, classificações e recomendações detalhadas"
+          />
+        </div>
+      </div>
+
+      <Separator />
+
+      {/* Tech Stack */}
+      <div className="space-y-4">
+        <h2 className="text-2xl font-bold tracking-tight">Tecnologias</h2>
+        <Card>
+          <CardHeader>
+            <CardTitle>Stack Tecnológico</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <h4 className="mb-2 font-semibold">Frontend</h4>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="secondary">React 19</Badge>
+                <Badge variant="secondary">Vite</Badge>
+                <Badge variant="secondary">TanStack Router</Badge>
+                <Badge variant="secondary">Tailwind CSS v4</Badge>
+                <Badge variant="secondary">shadcn/ui</Badge>
+              </div>
+            </div>
+            <div>
+              <h4 className="mb-2 font-semibold">Backend</h4>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="secondary">Bun Runtime</Badge>
+                <Badge variant="secondary">Express</Badge>
+                <Badge variant="secondary">Convex</Badge>
+                <Badge variant="secondary">TypeScript</Badge>
+              </div>
+            </div>
+            <div>
+              <h4 className="mb-2 font-semibold">Inteligência Artificial</h4>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="secondary">DeepSeek R1</Badge>
+                <Badge variant="secondary">Extended Thinking</Badge>
+                <Badge variant="secondary">Multi-provider</Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Footer Info */}
+      <Card className="border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20">
+        <CardContent className="pt-6">
+          <p className="text-center text-sm text-muted-foreground">
+            Desenvolvido com ❤️ usando Bun + React + Convex + DeepSeek AI
+          </p>
+        </CardContent>
+      </Card>
     </div>
-  )
+  );
 }
 
 function FeatureCard({
@@ -96,46 +157,45 @@ function FeatureCard({
   title,
   description,
 }: {
-  icon: React.ReactNode
-  title: string
-  description: string
+  icon: React.ReactNode;
+  title: string;
+  description: string;
 }) {
   return (
-    <div className="bg-white rounded-lg border p-6">
-      <div className="text-green-600 mb-4">{icon}</div>
-      <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
-      <p className="text-gray-600">{description}</p>
-    </div>
-  )
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <div className="rounded-lg bg-primary/10 p-2 text-primary">
+            {icon}
+          </div>
+          <CardTitle className="text-base">{title}</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm text-muted-foreground">{description}</p>
+      </CardContent>
+    </Card>
+  );
 }
 
-function TechItem({ name, tech }: { name: string; tech: string }) {
-  return (
-    <div className="flex items-center justify-between py-2">
-      <span className="text-gray-600">{name}</span>
-      <span className="font-medium text-gray-900">{tech}</span>
-    </div>
-  )
-}
-
-function Step({
+function ProcessStep({
   number,
   title,
   description,
 }: {
-  number: number
-  title: string
-  description: string
+  number: number;
+  title: string;
+  description: string;
 }) {
   return (
-    <li className="flex gap-4">
-      <div className="flex-shrink-0 w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold">
+    <div className="flex gap-4">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
         {number}
       </div>
-      <div>
-        <h3 className="font-semibold text-gray-900 mb-1">{title}</h3>
-        <p className="text-gray-600">{description}</p>
+      <div className="space-y-1">
+        <h3 className="font-semibold">{title}</h3>
+        <p className="text-sm text-muted-foreground">{description}</p>
       </div>
-    </li>
-  )
+    </div>
+  );
 }
