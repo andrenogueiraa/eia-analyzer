@@ -12,7 +12,7 @@ export const Route = createRootRoute({
         <div className="container flex items-center justify-between h-16 px-4 mx-auto">
           <Link to="/" className="flex items-center gap-2 text-xl font-medium">
             <Icon icon="uim:analytics" />
-            <span>EIA Analyzer</span>
+            <span>EIAnálise</span>
           </Link>
 
           <nav className="flex items-center gap-2">
