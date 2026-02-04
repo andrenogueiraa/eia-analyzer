@@ -1,7 +1,8 @@
 import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/router-devtools";
-import { Leaf } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Icon } from "@iconify/react";
+import { cn } from "@/lib/utils";
 
 export const Route = createRootRoute({
   component: () => (
@@ -9,20 +10,21 @@ export const Route = createRootRoute({
       {/* Header */}
       <header>
         <div className="container flex items-center justify-between h-16 px-4 mx-auto">
-          <Link
-            to="/"
-            className="flex items-center gap-2 text-xl font-bold transition-opacity hover:opacity-80"
-          >
-            <div className="p-2 rounded-lg bg-green-500/10">
-              <Leaf className="w-5 h-5 text-green-600" />
-            </div>
+          <Link to="/" className="flex items-center gap-2 text-xl font-medium">
+            <Icon icon="uim:analytics" />
             <span>EIA Analyzer</span>
           </Link>
 
           <nav className="flex items-center gap-2">
             <Link to="/">
               {({ isActive }) => (
-                <Button variant={isActive ? "default" : "ghost"} size="sm">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    isActive && "border-b-2 rounded-b-none border-primary"
+                  )}
+                >
                   Dashboard
                 </Button>
               )}

@@ -1,8 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useAction } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import type { Doc } from "../../convex/_generated/dataModel";
+import { api } from "@/../convex/_generated/api";
+import type { Analysis } from "@/types/convex";
 import {
   FileText,
   TrendingUp,
@@ -14,6 +14,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { UploadZone } from "@/components/upload-zone";
+import { AnalysisConfigDialog } from "@/components/analysis-config-dialog";
 import { formatBytes } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -162,7 +163,7 @@ function Dashboard() {
 
       {/* Analyses List */}
       <div className="space-y-4">
-        <h2 className="text-2xl font-bold tracking-tight">Análises Recentes</h2>
+        <h2 className="font-medium">Análises Recentes</h2>
 
         {analyses.length === 0 ? (
           <Card>
@@ -201,18 +202,21 @@ function Dashboard() {
   );
 }
 
-function AnalysisRow({ analysis }: { analysis: Doc<"analyses"> }) {
+function AnalysisRow({ analysis }: { analysis: Analysis }) {
   const startAnalysis = useAction(api.analyses.startAnalysis);
   const [starting, setStarting] = useState(false);
+  const [configOpen, setConfigOpen] = useState(false);
 
-  const handleStart = async () => {
+  const handleStart = async (config: any) => {
     setStarting(true);
+    setConfigOpen(false);
     try {
       const siteUrl = import.meta.env.VITE_CONVEX_SITE_URL;
       const callbackUrl = `${siteUrl}/analysis-webhook`;
       await startAnalysis({
         id: analysis._id,
         callbackUrl,
+        config, // Pass user configuration
       });
     } catch (err) {
       console.error("Failed to start analysis:", err);
@@ -223,40 +227,41 @@ function AnalysisRow({ analysis }: { analysis: Doc<"analyses"> }) {
   };
 
   return (
-    <TableRow>
-      <TableCell>
-        <div className="flex items-center gap-3">
-          <FileText className="w-5 h-5 text-muted-foreground" />
-          <div>
-            <div className="font-medium">{analysis.fileName}</div>
-            <div className="text-sm text-muted-foreground">
-              {(analysis.fileSize / 1024 / 1024).toFixed(2)} MB
+    <>
+      <TableRow>
+        <TableCell>
+          <div className="flex items-center gap-3">
+            <FileText className="w-5 h-5 text-muted-foreground" />
+            <div>
+              <div className="font-medium">{analysis.fileName}</div>
+              <div className="text-sm text-muted-foreground">
+                {(analysis.fileSize / 1024 / 1024).toFixed(2)} MB
+              </div>
             </div>
           </div>
-        </div>
-      </TableCell>
-      <TableCell>
-        <StatusBadge status={analysis.status} />
-      </TableCell>
-      <TableCell>
-        {analysis.progress ? (
-          <div className="flex items-center gap-2">
-            <Progress value={analysis.progress.percentage} className="w-24" />
-            <span className="text-sm text-muted-foreground">
-              {analysis.progress.percentage}%
-            </span>
-          </div>
-        ) : (
-          <span className="text-sm text-muted-foreground">-</span>
-        )}
-      </TableCell>
+        </TableCell>
+        <TableCell>
+          <StatusBadge status={analysis.status} />
+        </TableCell>
+        <TableCell>
+          {analysis.progress ? (
+            <div className="flex items-center gap-2">
+              <Progress value={analysis.progress.percentage} className="w-24" />
+              <span className="text-sm text-muted-foreground">
+                {analysis.progress.percentage}%
+              </span>
+            </div>
+          ) : (
+            <span className="text-sm text-muted-foreground">-</span>
+          )}
+        </TableCell>
       <TableCell className="text-sm text-muted-foreground">
         {new Date(analysis.createdAt).toLocaleDateString("pt-BR")}
       </TableCell>
       <TableCell className="text-right">
         {analysis.status === "pending" && (
           <Button
-            onClick={handleStart}
+            onClick={() => setConfigOpen(true)}
             disabled={starting}
             size="sm"
             className="gap-2"
@@ -276,8 +281,10 @@ function AnalysisRow({ analysis }: { analysis: Doc<"analyses"> }) {
           </Badge>
         )}
         {analysis.status === "completed" && (
-          <Button variant="outline" size="sm">
-            Ver Resultado
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/analysis/$id" params={{ id: analysis._id }}>
+              Ver Resultado
+            </Link>
           </Button>
         )}
         {analysis.status === "failed" && (
@@ -288,6 +295,14 @@ function AnalysisRow({ analysis }: { analysis: Doc<"analyses"> }) {
         )}
       </TableCell>
     </TableRow>
+
+      <AnalysisConfigDialog
+        open={configOpen}
+        onOpenChange={setConfigOpen}
+        onConfirm={handleStart}
+        loading={starting}
+      />
+    </>
   );
 }
 
@@ -311,14 +326,14 @@ function StatsCard({
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <div className={`rounded-lg p-2 ${variantClasses[variant]}`}>
+        <div className={`rounded-lg p-1 ${variantClasses[variant]}`}>
           {icon}
         </div>
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
+        <div className="text-3xl">{value}</div>
       </CardContent>
     </Card>
   );
