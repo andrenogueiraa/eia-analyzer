@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@iconify/react": "^6.0.2",
+    "@tailwindcss/typography": "^0.5.19",
     "@tanstack/react-router": "^1.158.0",
     "@tanstack/router-devtools": "^1.158.0",
     "@tanstack/router-vite-plugin": "^1.158.0",
@@ -19,10 +20,12 @@
     "convex": "^1.31.7",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.563.0",
+    "pdfmake": "^0.3.3",
     "radix-ui": "^1.4.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-dropzone": "^14.4.0",
+    "react-markdown": "^10.1.0",
     "recharts": "^3.7.0",
     "tailwind-merge": "^3.4.0"
   },
