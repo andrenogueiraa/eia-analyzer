@@ -170,9 +170,10 @@ async function processAnalysis(
       percentage: 90,
     });
 
-    // Send completion
+    // Send completion with cost
     log("Analysis complete!");
-    await sendCompletion(callbackUrl, analysisId, resultado);
+    log(`Total cost: $${resultado.metadados?.custoEstimado || 0}`);
+    await sendCompletion(callbackUrl, analysisId, resultado, resultado.metadados?.custoEstimado);
 
     // Cleanup
     unlinkSync(tempFilePath);
@@ -203,6 +204,7 @@ interface CallbackPayload {
   progress?: AnalysisProgress;
   result?: unknown;
   error?: string;
+  cost?: number;
 }
 
 /** Send callback to webhook URL */
@@ -233,13 +235,14 @@ function sendProgress(
   return sendCallback(callbackUrl, { type: "progress", analysisId, progress });
 }
 
-/** Send completion with result */
+/** Send completion with result and cost */
 function sendCompletion(
   callbackUrl: string | undefined,
   analysisId: string,
-  result: unknown
+  result: unknown,
+  cost?: number
 ): Promise<void> {
-  return sendCallback(callbackUrl, { type: "complete", analysisId, result });
+  return sendCallback(callbackUrl, { type: "complete", analysisId, result, cost });
 }
 
 /** Send error message */

@@ -43,7 +43,10 @@ export interface RelatorioFinal {
   metadados: {
     modeloUsado: string;
     thinkingTokensUsados: number;
+    inputTokens: number;
+    outputTokens: number;
     tempoTotal: number;
+    custoEstimado: number;
   };
 }
 
@@ -64,6 +67,8 @@ export interface AnalisePorFase {
   nome: string;
   resultado: unknown;
   thinkingTokens: number;
+  inputTokens: number;
+  outputTokens: number;
   duracao: number;
 }
 

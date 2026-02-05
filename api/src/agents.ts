@@ -12,6 +12,7 @@ import { config } from "./config";
 import { createAIProvider, type AIProvider } from "./ai-provider";
 import { toolsLegal, toolsTecnico, toolsImpactos, toolsMitigacao } from "./tools";
 import { truncateText, estimateTokens } from "./extractor";
+import { calculateCost } from "./pricing";
 
 // ============ CONFIGURAÇÃO DAS ANÁLISES ESPECIALIZADAS ============
 interface AnaliseConfig {
@@ -296,6 +297,8 @@ Responda em formato estruturado JSON:
       nome: "Leitura Profunda",
       resultado: contexto,
       thinkingTokens: response.usage?.thinkingTokens || 0,
+      inputTokens: response.usage?.inputTokens || 0,
+      outputTokens: response.usage?.outputTokens || 0,
       duracao,
     });
 
@@ -448,6 +451,8 @@ Responda em formato JSON:
       nome: "Verificação Cruzada",
       resultado: verificacao,
       thinkingTokens: response.usage?.thinkingTokens || 0,
+      inputTokens: response.usage?.inputTokens || 0,
+      outputTokens: response.usage?.outputTokens || 0,
       duracao,
     });
 
@@ -531,6 +536,13 @@ IMPORTANTE:
     // Extrair recomendações do relatório final
     const recomendacoes = this.extrairRecomendacoes(response.content);
 
+    const totalThinkingTokens = this.fases.reduce((acc, f) => acc + f.thinkingTokens, 0);
+    const totalInputTokens = this.fases.reduce((acc, f) => acc + f.inputTokens, 0) + (response.usage?.inputTokens || 0);
+    const totalOutputTokens = this.fases.reduce((acc, f) => acc + f.outputTokens, 0) + (response.usage?.outputTokens || 0);
+
+    // Calculate cost (async - fetches pricing from Convex)
+    const custoEstimado = await this.calcularCusto(totalInputTokens, totalOutputTokens, totalThinkingTokens);
+
     const relatorio: RelatorioFinal = {
       documentoAnalisado: documento.fileName,
       dataAnalise: new Date(),
@@ -542,8 +554,11 @@ IMPORTANTE:
       recomendacoes,
       metadados: {
         modeloUsado: this.getModelInfo(),
-        thinkingTokensUsados: this.fases.reduce((acc, f) => acc + f.thinkingTokens, 0),
+        thinkingTokensUsados: totalThinkingTokens,
+        inputTokens: totalInputTokens,
+        outputTokens: totalOutputTokens,
         tempoTotal,
+        custoEstimado,
       },
     };
 
@@ -552,6 +567,8 @@ IMPORTANTE:
       nome: "Consolidação Final",
       resultado: relatorio,
       thinkingTokens: response.usage?.thinkingTokens || 0,
+      inputTokens: response.usage?.inputTokens || 0,
+      outputTokens: response.usage?.outputTokens || 0,
       duracao,
     });
 
@@ -559,6 +576,22 @@ IMPORTANTE:
   }
 
   // ============ UTILITÁRIOS ============
+
+  // Get model identifier for pricing lookup
+  private getModelIdentifier(): string {
+    return this.analysisConfig?.model || config.models[config.provider as keyof typeof config.models];
+  }
+
+  // Calculate cost based on tokens and provider/model (async - fetches from Convex)
+  private async calcularCusto(
+    inputTokens: number,
+    outputTokens: number,
+    thinkingTokens = 0
+  ): Promise<number> {
+    const modelIdentifier = this.getModelIdentifier();
+    return calculateCost(modelIdentifier, inputTokens, outputTokens, thinkingTokens);
+  }
+
   private extrairProblemas(texto: string, marcador: string): string[] {
     const problemas: string[] = [];
     const linhas = texto.split("\n");

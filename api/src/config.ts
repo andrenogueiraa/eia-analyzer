@@ -14,13 +14,15 @@ export const config = {
   openrouterProvider: process.env.OPENROUTER_PROVIDER || undefined,
 
   // Default values (used as fallbacks if not specified in request)
-  provider: process.env.AI_PROVIDER || "deepseek",
+  provider: process.env.AI_PROVIDER || "openrouter",
   models: {
-    anthropic: "claude-sonnet-4-5",
-    openai: "gpt-4-turbo",
-    deepseek: "deepseek-reasoner",
-    kimi: "moonshot-v1-128k",
-    openrouter: "moonshotai/kimi-k2.5",
+    anthropic: "claude-sonnet-4-5-20250514",
+    openai: "gpt-5.2",
+    google: "gemini-3-pro-preview",
+    deepseek: "deepseek-chat",
+    zhipu: "glm-4-0520",
+    moonshot: "moonshot-v1-128k",
+    openrouter: "moonshotai/kimi-k2.5", // Kimi K2.5 default
   },
 
   // Default analysis settings (fallbacks)
@@ -36,6 +38,9 @@ export const config = {
   // Features
   enableTools: true,
   enableThinking: true,
+
+  // Convex (for dynamic pricing)
+  convexSiteUrl: process.env.VITE_CONVEX_SITE_URL || "",
 };
 
 export function validateConfig(): void {
@@ -51,8 +56,12 @@ export function validateConfig(): void {
   }
 
   console.log("Configuration loaded:");
-  console.log("  Anthropic:", config.anthropicApiKey ? "configured" : "not set");
-  console.log("  OpenAI:", config.openaiApiKey ? "configured" : "not set");
-  console.log("  DeepSeek:", config.deepseekApiKey ? "configured" : "not set");
-  console.log("  OpenRouter:", config.openrouterApiKey ? "configured" : "not set");
+  console.log("  Default Provider:", config.provider);
+  console.log("  Default Model:", config.models[config.provider as keyof typeof config.models] || "N/A");
+  console.log("  API Keys:");
+  console.log("    Anthropic:", config.anthropicApiKey ? "✓" : "✗");
+  console.log("    OpenAI:", config.openaiApiKey ? "✓" : "✗");
+  console.log("    DeepSeek:", config.deepseekApiKey ? "✓" : "✗");
+  console.log("    OpenRouter:", config.openrouterApiKey ? "✓" : "✗");
+  console.log("  Convex Site URL:", config.convexSiteUrl ? "✓" : "✗ (using fallback pricing)");
 }
