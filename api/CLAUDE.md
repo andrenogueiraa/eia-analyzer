@@ -26,6 +26,7 @@ api/
 │   ├── config.ts          # Configurações centralizadas
 │   ├── extractor.ts       # Extração de PDF
 │   ├── index.ts           # CLI para análise
+│   ├── pricing.ts         # Cálculo de custos (cache + Convex)
 │   ├── tools.ts           # Ferramentas especializadas
 │   ├── types.ts           # TypeScript types
 │   └── test-config.ts     # Testes de configuração
@@ -71,6 +72,9 @@ ENABLE_TOOLS=true
 INPUT_DIR=./data/input
 OUTPUT_DIR=./data/output
 LOGS_DIR=./logs
+
+# Pricing dinâmico (Convex)
+VITE_CONVEX_SITE_URL=https://xxx.convex.site
 ```
 
 ## Arquitetura de Análise
@@ -131,14 +135,9 @@ export abstract class AIProvider {
    - Alta qualidade
 
 4. **OpenRouterProvider**
-   - Suporta: Múltiplos modelos
+   - Suporta: Múltiplos modelos (Kimi, Gemini, Qwen, etc.)
    - Provider selection (Together, SiliconFlow)
-   - Flexível
-
-5. **KimiProvider**
-   - Suporta: Kimi K2.5
-   - 128k context + reasoning
-   - Via OpenRouter ou direto
+   - Flexível e econômico
 
 ## API Endpoints
 
@@ -151,7 +150,19 @@ Inicia análise de um PDF.
 {
   "fileUrl": "https://storage.url/file.pdf",
   "analysisId": "convex_id",
-  "callbackUrl": "https://convex.site/webhook"
+  "callbackUrl": "https://convex.site/webhook",
+  "config": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-20250514",
+    "temperature": 0.3,
+    "maxTokens": 16000,
+    "thinkingBudget": {
+      "fase1": 5000,
+      "fase2": 3000,
+      "fase3": 2000,
+      "fase4": 5000
+    }
+  }
 }
 ```
 
@@ -390,11 +401,29 @@ bun run test
 
 ## Cost Optimization
 
-- DeepSeek R1: ~$0.55/1M input tokens
+### Pricing Dinâmico
+
+O módulo `pricing.ts` busca preços do Convex com cache de 5 minutos:
+
+```typescript
+import { calculateCost } from "./pricing";
+
+const cost = await calculateCost({
+  provider: "anthropic",
+  model: "claude-sonnet-4-20250514",
+  inputTokens: 10000,
+  outputTokens: 5000,
+  thinkingTokens: 3000,
+});
+```
+
+### Dicas de Economia
+
 - Usar thinking budget adequado (não excessivo)
 - Cache quando possível
 - Escolher modelo adequado para tarefa
 - Monitorar custos por análise
+- DeepSeek R1 é mais econômico para análises longas
 
 ---
 

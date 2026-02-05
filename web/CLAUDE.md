@@ -12,7 +12,9 @@ Interface web moderna para análise de EIA com real-time updates.
 - **Components:** shadcn/ui
 - **Database:** Convex (serverless, real-time)
 - **Icons:** Lucide React + @iconify/react
-- **Forms:** React Hook Form
+- **Charts:** Recharts
+- **PDF Export:** pdfmake
+- **Markdown:** react-markdown
 - **State:** React Hooks + Convex queries
 
 ## Estrutura de Diretórios
@@ -21,23 +23,30 @@ Interface web moderna para análise de EIA com real-time updates.
 web/
 ├── src/
 │   ├── routes/               # TanStack Router (file-based)
-│   │   ├── __root.tsx       # Layout raiz
-│   │   ├── index.tsx        # Dashboard
-│   │   ├── about.tsx        # Sobre
-│   │   └── analysis.$id.tsx # Detalhes da análise
+│   │   ├── __root.tsx       # Layout raiz (header/footer)
+│   │   ├── index.tsx        # Dashboard (lista de estudos)
+│   │   ├── about.tsx        # Metodologia de análise
+│   │   ├── models.tsx       # Providers e modelos disponíveis
+│   │   ├── study.$id.tsx    # Detalhes do estudo
+│   │   └── analysis.$id.tsx # Resultado da análise
 │   ├── components/
-│   │   ├── ui/              # shadcn/ui components
+│   │   ├── ui/              # shadcn/ui components (18+)
 │   │   ├── upload-zone.tsx  # Upload drag & drop
 │   │   └── analysis-config-dialog.tsx  # Config modal
 │   ├── lib/
-│   │   └── utils.ts         # Utility functions
+│   │   ├── utils.ts         # Utility functions (cn)
+│   │   └── constants.ts     # Configurações de providers/models
 │   ├── types/
-│   │   └── convex.ts        # Convex database types
+│   │   ├── convex.ts        # Convex database types
+│   │   └── pdfmake.d.ts     # Type definitions
 │   ├── index.css            # Tailwind imports
 │   └── main.tsx             # Entry point
 ├── convex/
-│   ├── schema.ts            # Database schema
-│   ├── analyses.ts          # CRUD functions
+│   ├── schema.ts            # Database schema (5 tabelas)
+│   ├── analyses.ts          # CRUD de análises
+│   ├── studies.ts           # CRUD de estudos
+│   ├── providers.ts         # Queries de providers/models
+│   ├── seed.ts              # Seeding do banco
 │   ├── http.ts              # Webhook endpoints
 │   └── _generated/          # Auto-generated (git ignored)
 ├── public/
@@ -49,12 +58,63 @@ web/
 
 ### Schema (convex/schema.ts)
 
+O banco possui 5 tabelas principais:
+
 ```typescript
 export default defineSchema({
-  analyses: defineTable({
+  // Providers de IA (Anthropic, OpenAI, DeepSeek, OpenRouter)
+  providers: defineTable({
+    slug: v.string(),
+    name: v.string(),
+    baseUrl: v.optional(v.string()),
+    description: v.optional(v.string()),
+    isActive: v.boolean(),
+    order: v.number(),
+  }).index("by_slug", ["slug"])
+    .index("by_active", ["isActive"]),
+
+  // Modelos de IA (Claude, GPT, etc.)
+  models: defineTable({
+    slug: v.string(),
+    name: v.string(),
+    family: v.string(),
+    description: v.optional(v.string()),
+    contextWindow: v.number(),
+    maxOutputTokens: v.number(),
+    supportsThinking: v.boolean(),
+    supportsTools: v.boolean(),
+    supportsVision: v.boolean(),
+    isActive: v.boolean(),
+  }).index("by_slug", ["slug"])
+    .index("by_family", ["family"]),
+
+  // Junction: Provider + Model + Pricing
+  providerModels: defineTable({
+    providerId: v.id("providers"),
+    modelId: v.id("models"),
+    modelIdentifier: v.string(),
+    inputCostPer1M: v.number(),
+    outputCostPer1M: v.number(),
+    thinkingCostPer1M: v.optional(v.number()),
+    isDefault: v.boolean(),
+    isActive: v.boolean(),
+    notes: v.optional(v.string()),
+  }).index("by_provider", ["providerId"])
+    .index("by_model", ["modelId"]),
+
+  // Estudos (PDFs enviados)
+  studies: defineTable({
     fileName: v.string(),
     fileId: v.id("_storage"),
     fileSize: v.number(),
+    description: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("by_created", ["createdAt"]),
+
+  // Análises individuais
+  analyses: defineTable({
+    studyId: v.id("studies"),
+    config: v.object({ /* provider, model, temperature, etc */ }),
     status: v.union(
       v.literal("pending"),
       v.literal("processing"),
@@ -69,25 +129,37 @@ export default defineSchema({
     result: v.optional(v.any()),
     error: v.optional(v.string()),
     createdAt: v.number(),
+    startedAt: v.optional(v.number()),
     completedAt: v.optional(v.number()),
     cost: v.optional(v.number()),
-  })
-    .index("by_status", ["status"])
-    .index("by_created", ["createdAt"]),
+  }).index("by_study", ["studyId"])
+    .index("by_status", ["status"]),
 });
 ```
 
-### Functions (convex/analyses.ts)
+### Functions
 
-- `list` - Query all analyses
-- `get` - Query single analysis by ID
-- `stats` - Query statistics
-- `create` - Mutation to create analysis
-- `generateUploadUrl` - Mutation for file upload
-- `startAnalysis` - Action to trigger API
-- `updateProgress` - Internal mutation (webhook)
-- `complete` - Internal mutation (webhook)
-- `fail` - Internal mutation (webhook)
+**convex/studies.ts** - Gestão de estudos (PDFs)
+- `list` - Listar todos os estudos
+- `get` - Buscar estudo por ID
+- `create` - Criar novo estudo
+- `generateUploadUrl` - URL para upload de arquivo
+
+**convex/analyses.ts** - Gestão de análises
+- `list` - Listar análises (filtro por estudo)
+- `get` - Buscar análise por ID
+- `stats` - Estatísticas gerais
+- `create` - Criar nova análise
+- `startAnalysis` - Action para iniciar análise na API
+- `updateProgress` - Atualizar progresso (webhook)
+- `complete` - Marcar como concluída (webhook)
+- `fail` - Marcar como falha (webhook)
+
+**convex/providers.ts** - Providers e modelos
+- `listProviders` - Listar providers ativos
+- `listModels` - Listar modelos por provider
+- `getProviderModels` - Modelos com pricing
+- `getPricing` - Preços por provider/model (usado pela API)
 
 ## Routing (TanStack Router)
 
@@ -95,10 +167,12 @@ export default defineSchema({
 
 ```
 routes/
-  __root.tsx         → Layout + outlet
-  index.tsx          → /
-  about.tsx          → /about
-  analysis.$id.tsx   → /analysis/:id
+  __root.tsx         → Layout (header/footer)
+  index.tsx          → /           (Dashboard)
+  about.tsx          → /about      (Metodologia)
+  models.tsx         → /models     (Providers/Modelos)
+  study.$id.tsx      → /study/:id  (Detalhes do estudo)
+  analysis.$id.tsx   → /analysis/:id (Resultado da análise)
 ```
 
 ### Navigation
@@ -122,19 +196,24 @@ import { Link } from "@tanstack/react-router";
 
 ## Components (shadcn/ui)
 
-### Installed Components
+### Installed Components (18+)
 
+- `alert` - Alertas informativos
+- `alert-dialog` - Diálogos de confirmação
+- `badge` - Status badges
 - `button` - Botões com variants
 - `card` - Cards com header/content/footer
-- `badge` - Status badges
-- `table` - Tabelas responsivas
-- `progress` - Progress bars
-- `alert` - Alertas
-- `separator` - Separadores
+- `collapsible` - Seções expansíveis
 - `dialog` - Modals
-- `select` - Dropdowns
-- `slider` - Range inputs
 - `label` - Form labels
+- `progress` - Progress bars
+- `select` - Dropdowns
+- `separator` - Separadores
+- `skeleton` - Loading placeholders
+- `slider` - Range inputs
+- `table` - Tabelas responsivas
+- `tabs` - Navegação por abas
+- `tooltip` - Dicas ao passar o mouse
 
 ### Adding New Components
 

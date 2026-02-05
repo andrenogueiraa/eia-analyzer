@@ -8,6 +8,8 @@ Sistema de análise automatizada de Estudos de Impacto Ambiental (EIA) usando IA
 analise-estudo/
 ├── api/              # Backend - API de análise com IA
 ├── web/              # Frontend - Interface web com Convex
+├── dev.sh            # Script para iniciar todos os serviços
+├── stop.sh           # Script para parar todos os serviços
 ├── .gitignore        # Ignores do repositório
 └── README.md         # Documentação principal
 ```
@@ -40,7 +42,7 @@ analise-estudo/
   Descrição detalhada do que foi feito e por quê.
   Pode ter múltiplas linhas.
 
-  Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+  Co-Authored-By: Claude <noreply@anthropic.com>
   ```
 
 ### Code Style
@@ -91,16 +93,22 @@ analise-estudo/
 ## Comandos Úteis
 
 ```bash
+# Iniciar todos os serviços (recomendado)
+./dev.sh                       # Inicia API, Convex e Web em background
+
+# Parar todos os serviços
+./stop.sh
+
+# Ou manualmente (3 terminais)
+cd api && bun run api          # Terminal 1
+cd web && bunx convex dev      # Terminal 2
+cd web && bun dev              # Terminal 3
+
 # Verificar TypeScript em todo projeto
 bun tsc
 
 # Testar configuração
 cd api && bun run test
-
-# Iniciar serviços (3 terminais)
-cd api && bun run api          # Terminal 1
-cd web && bunx convex dev      # Terminal 2
-cd web && bun dev              # Terminal 3
 ```
 
 ## Regras de Desenvolvimento
