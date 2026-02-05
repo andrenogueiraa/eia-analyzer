@@ -9,30 +9,32 @@ import type { RelatorioFinal } from "./types";
 
 // ============ FUNÇÕES AUXILIARES ============
 
-function listarPDFsNoInput(): string[] {
-  const inputDir = config.inputDir;
+// Default directories for CLI usage
+const INPUT_DIR = "./data/input";
+const OUTPUT_DIR = "./data/output";
 
-  if (!existsSync(inputDir)) {
-    console.error(`❌ Diretório de input não existe: ${inputDir}`);
-    console.log(`\nCrie o diretório e coloque os PDFs de EIA lá:`);
-    console.log(`  mkdir -p ${inputDir}`);
+function listarPDFsNoInput(): string[] {
+  if (!existsSync(INPUT_DIR)) {
+    console.error(`Diretorio de input nao existe: ${INPUT_DIR}`);
+    console.log(`\nCrie o diretorio e coloque os PDFs de EIA la:`);
+    console.log(`  mkdir -p ${INPUT_DIR}`);
     process.exit(1);
   }
 
-  const arquivos = readdirSync(inputDir);
+  const arquivos = readdirSync(INPUT_DIR);
   const pdfs = arquivos.filter((f) => f.toLowerCase().endsWith(".pdf"));
 
   if (pdfs.length === 0) {
-    console.error(`❌ Nenhum PDF encontrado em ${inputDir}`);
-    console.log(`\nColoque os arquivos PDF de EIA no diretório de input.`);
+    console.error(`Nenhum PDF encontrado em ${INPUT_DIR}`);
+    console.log(`\nColoque os arquivos PDF de EIA no diretorio de input.`);
     process.exit(1);
   }
 
-  return pdfs.map((pdf) => join(inputDir, pdf));
+  return pdfs.map((pdf) => join(INPUT_DIR, pdf));
 }
 
 function salvarRelatorio(relatorio: RelatorioFinal, caminhoOriginal: string): void {
-  const outputDir = config.outputDir;
+  const outputDir = OUTPUT_DIR;
 
   // Criar diretório de output se não existir
   if (!existsSync(outputDir)) {

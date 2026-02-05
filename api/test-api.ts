@@ -2,9 +2,15 @@
 
 import OpenAI from "openai";
 
+const apiKey = process.env.OPENROUTER_API_KEY;
+if (!apiKey) {
+  console.error("ERROR: OPENROUTER_API_KEY environment variable not set");
+  process.exit(1);
+}
+
 const client = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
-  apiKey: "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",
+  apiKey,
   defaultHeaders: {
     "HTTP-Referer": "https://github.com/analise-eia",
     "X-Title": "Analisador de EIA",
