@@ -305,8 +305,38 @@ class DeepSeekProvider extends OpenAICompatibleProvider {
     return true;
   }
 
+  get supportsTools(): boolean {
+    // deepseek-reasoner (R1) does not support tools
+    const model = this.getModel(this.defaultModel);
+    return !model.includes("reasoner");
+  }
+
+  private isReasonerModel(): boolean {
+    const model = this.getModel(this.defaultModel);
+    return model.includes("reasoner");
+  }
+
   async generateResponse(options: AIRequestOptions): Promise<AIResponse> {
-    const body = this.buildRequestBody(options);
+    const { messages, tools, maxTokens } = options;
+
+    // Build request body - reasoner model has restrictions
+    const body: Record<string, unknown> = {
+      model: this.getModel(this.defaultModel),
+      messages: messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+      })),
+      max_tokens: this.getMaxTokens(maxTokens),
+    };
+
+    // deepseek-reasoner does NOT support temperature or tools
+    if (!this.isReasonerModel()) {
+      body.temperature = this.getTemperature(options.temperature);
+      if (tools && tools.length > 0 && config.enableTools) {
+        body.tools = convertToolsToOpenAIFormat(tools);
+      }
+    }
+
     const data = await this.fetchCompletion(body);
     return parseOpenAIResponse(data, true);
   }
