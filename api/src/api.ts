@@ -16,7 +16,10 @@ function log(message: string) {
   console.log(message);
   try {
     appendFileSync(logFile, line);
-  } catch {}
+  } catch (err) {
+    // Don't log recursively, just output to stderr
+    console.error("Failed to write to log file:", err instanceof Error ? err.message : err);
+  }
 }
 
 const app = express();
@@ -47,7 +50,9 @@ let progressCallback: ((progress: AnalysisProgress) => Promise<void>) | null =
 // POST /analyze - Start analysis
 app.post("/analyze", async (req, res) => {
   try {
+    log(`POST /analyze received body: ${JSON.stringify(req.body)}`);
     const { fileUrl, analysisId, callbackUrl, config: reqConfig } = req.body;
+    log(`Extracted config: ${JSON.stringify(reqConfig)}`);
 
     if (!fileUrl || !analysisId) {
       return res.status(400).json({
@@ -182,7 +187,9 @@ async function processAnalysis(
     // Cleanup on error
     try {
       unlinkSync(tempFilePath);
-    } catch {}
+    } catch (cleanupErr) {
+      console.error("Failed to cleanup temp file:", cleanupErr instanceof Error ? cleanupErr.message : cleanupErr);
+    }
   }
 }
 

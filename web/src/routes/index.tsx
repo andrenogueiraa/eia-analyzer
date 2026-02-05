@@ -215,7 +215,11 @@ function StudyRow({ study }: { study: StudyWithCounts }) {
   const [isOpen, setIsOpen] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
   const [starting, setStarting] = useState(false);
-  const studyWithAnalyses = useQuery(api.studies.get, { id: study._id });
+  // Only fetch full analyses list when expanded (skip query when closed)
+  const studyWithAnalyses = useQuery(
+    api.studies.get,
+    isOpen ? { id: study._id } : "skip"
+  );
   const getFileUrl = useQuery(api.studies.getFileUrl, { fileId: study.fileId });
   const createAnalysis = useMutation(api.analyses.create);
   const removeStudy = useMutation(api.studies.remove);
