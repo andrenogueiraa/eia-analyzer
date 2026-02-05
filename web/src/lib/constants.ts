@@ -81,8 +81,8 @@ export function getProviderIds(): string[] {
 // ============ DEFAULT CONFIG ============
 
 export const DEFAULT_ANALYSIS_CONFIG = {
-  provider: "deepseek",
-  model: "deepseek-reasoner",
+  provider: "openrouter",
+  model: "moonshotai/kimi-k2.5",
   temperature: 0.3,
   maxTokens: 16000,
   enableThinking: true,

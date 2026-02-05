@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery } from "convex/react";
+import { api } from "@/../convex/_generated/api";
 import {
   Dialog,
   DialogContent,
@@ -19,9 +21,27 @@ import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Zap, DollarSign, Settings2, ChevronDown, ChevronUp } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Sparkles,
+  Zap,
+  DollarSign,
+  Settings2,
+  ChevronDown,
+  ChevronUp,
+  Eye,
+  Wrench,
+  Brain,
+} from "lucide-react";
 import type { AnalysisConfig } from "@/types/convex";
 import { PROVIDERS, DEFAULT_ANALYSIS_CONFIG } from "@/lib/constants";
+
+interface AnalysisConfigDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: (config: AnalysisConfig) => void;
+  loading?: boolean;
+}
 
 export function AnalysisConfigDialog({
   open,
@@ -34,12 +54,112 @@ export function AnalysisConfigDialog({
   });
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const currentProvider = PROVIDERS[config.provider as keyof typeof PROVIDERS];
-  const currentModel = currentProvider.models.find((m) => m.id === config.model);
-  const supportsThinking = currentModel?.reasoning || false;
+  // Queries dinâmicas do Convex
+  const providers = useQuery(api.providers.listProviders);
+  const providerModels = useQuery(
+    api.providers.getModelsForProvider,
+    config.provider ? { providerSlug: config.provider } : "skip"
+  );
+
+  // Fallback para dados estáticos se banco estiver vazio
+  const hasProviders = providers && providers.length > 0;
+  const hasModels = providerModels && providerModels.length > 0;
+
+  // Encontra o model atual selecionado
+  const currentProviderModel = providerModels?.find(
+    (pm) => pm.modelIdentifier === config.model
+  );
+  const supportsThinking = currentProviderModel?.model?.supportsThinking || false;
+
+  // Fallback para providers estáticos se banco vazio
+  const staticProvider = PROVIDERS[config.provider as keyof typeof PROVIDERS];
+  const staticModel = staticProvider?.models.find((m) => m.id === config.model);
+  const fallbackSupportsThinking = staticModel?.reasoning || false;
+
+  // Determina se thinking é suportado (banco ou fallback)
+  const thinkingEnabled = hasModels ? supportsThinking : fallbackSupportsThinking;
+
+  // Atualiza enableThinking quando modelo muda
+  useEffect(() => {
+    if (hasModels && currentProviderModel) {
+      setConfig((prev) => ({
+        ...prev,
+        enableThinking: currentProviderModel.model?.supportsThinking || false,
+      }));
+    }
+  }, [hasModels, currentProviderModel]);
+
+  // Calcula custo estimado baseado nos tokens configurados
+  const estimatedCost = (() => {
+    if (!currentProviderModel) return "~$5-8";
+
+    const inputTokensEstimate = 50000; // ~50k tokens para um EIA típico
+    const outputTokensEstimate = config.maxTokens;
+    const thinkingTokensEstimate = config.enableThinking ? config.thinkingBudget : 0;
+
+    const inputCost =
+      (inputTokensEstimate / 1_000_000) * currentProviderModel.inputCostPer1M;
+    const outputCost =
+      (outputTokensEstimate / 1_000_000) * currentProviderModel.outputCostPer1M;
+    const thinkingRate =
+      currentProviderModel.thinkingCostPer1M ?? currentProviderModel.outputCostPer1M;
+    const thinkingCost = (thinkingTokensEstimate / 1_000_000) * thinkingRate;
+
+    const total = inputCost + outputCost + thinkingCost;
+    return `~$${total.toFixed(2)}`;
+  })();
 
   const handleConfirm = () => {
     onConfirm(config);
+  };
+
+  const handleProviderChange = (providerSlug: string) => {
+    // Usa dados do banco se disponíveis
+    if (hasProviders) {
+      const newProviderModels = providerModels || [];
+      const defaultModel = newProviderModels.find((pm) => pm.isDefault);
+      const firstModel = newProviderModels[0];
+      const modelToUse = defaultModel || firstModel;
+
+      setConfig({
+        ...config,
+        provider: providerSlug,
+        model: modelToUse?.modelIdentifier || "",
+        enableThinking: modelToUse?.model?.supportsThinking || false,
+      });
+    } else {
+      // Fallback para dados estáticos
+      const provider = PROVIDERS[providerSlug as keyof typeof PROVIDERS];
+      setConfig({
+        ...config,
+        provider: providerSlug,
+        model: provider.models[0].id,
+        enableThinking: provider.models[0].reasoning,
+      });
+    }
+  };
+
+  const handleModelChange = (modelIdentifier: string) => {
+    if (hasModels) {
+      const model = providerModels?.find(
+        (pm) => pm.modelIdentifier === modelIdentifier
+      );
+      setConfig({
+        ...config,
+        model: modelIdentifier,
+        enableThinking: model?.model?.supportsThinking || false,
+      });
+    } else {
+      // Fallback para dados estáticos
+      const staticModel = staticProvider?.models.find(
+        (m) => m.id === modelIdentifier
+      );
+      setConfig({
+        ...config,
+        model: modelIdentifier,
+        enableThinking: staticModel?.reasoning || false,
+      });
+    }
   };
 
   return (
@@ -59,67 +179,112 @@ export function AnalysisConfigDialog({
           {/* Provider Selection */}
           <div className="space-y-2">
             <Label htmlFor="provider">Provedor de IA</Label>
-            <Select
-              value={config.provider}
-              onValueChange={(value) => {
-                const provider = PROVIDERS[value as keyof typeof PROVIDERS];
-                setConfig({
-                  ...config,
-                  provider: value,
-                  model: provider.models[0].id,
-                  enableThinking: provider.models[0].reasoning,
-                });
-              }}
-            >
-              <SelectTrigger id="provider">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(PROVIDERS).map(([key, provider]) => (
-                  <SelectItem key={key} value={key}>
-                    <div className="flex items-center gap-2">
-                      <span>{provider.icon}</span>
-                      <span>{provider.name}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {providers === undefined ? (
+              <Skeleton className="h-10 w-full" />
+            ) : (
+              <Select
+                value={config.provider}
+                onValueChange={handleProviderChange}
+              >
+                <SelectTrigger id="provider">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {hasProviders
+                    ? providers.map((provider) => (
+                        <SelectItem key={provider.slug} value={provider.slug}>
+                          <div className="flex items-center gap-2">
+                            <span>{provider.name}</span>
+                            {provider.description && (
+                              <span className="text-xs text-muted-foreground">
+                                ({provider.description})
+                              </span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))
+                    : Object.entries(PROVIDERS).map(([key, provider]) => (
+                        <SelectItem key={key} value={key}>
+                          <div className="flex items-center gap-2">
+                            <span>{provider.icon}</span>
+                            <span>{provider.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           {/* Model Selection */}
           <div className="space-y-2">
             <Label htmlFor="model">Modelo</Label>
-            <Select
-              value={config.model}
-              onValueChange={(value) => {
-                const model = currentProvider.models.find((m) => m.id === value);
-                setConfig({
-                  ...config,
-                  model: value,
-                  enableThinking: model?.reasoning || false,
-                });
-              }}
-            >
-              <SelectTrigger id="model">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {currentProvider.models.map((model) => (
-                  <SelectItem key={model.id} value={model.id}>
-                    <div className="flex items-center gap-2">
-                      <span>{model.name}</span>
-                      {model.reasoning && (
-                        <Badge variant="secondary" className="text-xs">
-                          <Sparkles className="mr-1 h-3 w-3" />
-                          Reasoning
-                        </Badge>
-                      )}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {providerModels === undefined && hasProviders ? (
+              <Skeleton className="h-10 w-full" />
+            ) : (
+              <Select value={config.model} onValueChange={handleModelChange}>
+                <SelectTrigger id="model">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {hasModels
+                    ? providerModels.map((pm) => (
+                        <SelectItem
+                          key={pm.modelIdentifier}
+                          value={pm.modelIdentifier}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span>{pm.model?.name || pm.modelIdentifier}</span>
+                            <div className="flex gap-1">
+                              {pm.model?.supportsThinking && (
+                                <Badge
+                                  variant="secondary"
+                                  className="text-xs px-1.5"
+                                >
+                                  <Brain className="h-3 w-3" />
+                                </Badge>
+                              )}
+                              {pm.model?.supportsTools && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs px-1.5"
+                                >
+                                  <Wrench className="h-3 w-3" />
+                                </Badge>
+                              )}
+                              {pm.model?.supportsVision && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs px-1.5"
+                                >
+                                  <Eye className="h-3 w-3" />
+                                </Badge>
+                              )}
+                            </div>
+                            {pm.isDefault && (
+                              <Badge variant="default" className="text-xs">
+                                Default
+                              </Badge>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))
+                    : staticProvider?.models.map((model) => (
+                        <SelectItem key={model.id} value={model.id}>
+                          <div className="flex items-center gap-2">
+                            <span>{model.name}</span>
+                            {model.reasoning && (
+                              <Badge variant="secondary" className="text-xs">
+                                <Sparkles className="mr-1 h-3 w-3" />
+                                Reasoning
+                              </Badge>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           {/* Advanced Settings Toggle */}
@@ -191,7 +356,7 @@ export function AnalysisConfigDialog({
               </div>
 
               {/* Thinking Budget (only for reasoning models) */}
-              {supportsThinking && (
+              {thinkingEnabled && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -231,12 +396,12 @@ export function AnalysisConfigDialog({
             <InfoCard
               icon={<Zap className="h-4 w-4" />}
               label="Qualidade"
-              value={supportsThinking ? "Alta" : "Padrão"}
+              value={thinkingEnabled ? "Alta" : "Padrão"}
             />
             <InfoCard
               icon={<DollarSign className="h-4 w-4" />}
               label="Custo Est."
-              value="~$5-8"
+              value={estimatedCost}
             />
             <InfoCard
               icon={<Sparkles className="h-4 w-4" />}
