@@ -29,6 +29,19 @@ export const Route = createRootRoute({
                 </Button>
               )}
             </Link>
+            <Link to="/models">
+              {({ isActive }) => (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    isActive && "border-b-2 rounded-b-none border-primary"
+                  )}
+                >
+                  Models
+                </Button>
+              )}
+            </Link>
             <Link to="/about">
               {({ isActive }) => (
                 <Button variant={isActive ? "default" : "ghost"} size="sm">
