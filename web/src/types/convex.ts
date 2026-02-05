@@ -83,3 +83,50 @@ export interface StudyStats {
   failed: number;
   totalCost: number;
 }
+
+// ============ AI Provider/Model Types ============
+
+export interface Provider {
+  _id: Id<"providers">;
+  _creationTime: number;
+  slug: string;
+  name: string;
+  baseUrl: string;
+  description?: string;
+  isActive: boolean;
+  order: number;
+}
+
+export interface Model {
+  _id: Id<"models">;
+  _creationTime: number;
+  slug: string;
+  name: string;
+  family: string;
+  description?: string;
+  contextWindow: number;
+  maxOutputTokens: number;
+  supportsThinking: boolean;
+  supportsTools: boolean;
+  supportsVision: boolean;
+  isActive: boolean;
+}
+
+export interface ProviderModel {
+  _id: Id<"providerModels">;
+  _creationTime: number;
+  providerId: Id<"providers">;
+  modelId: Id<"models">;
+  modelIdentifier: string;
+  inputCostPer1M: number;
+  outputCostPer1M: number;
+  thinkingCostPer1M?: number;
+  isDefault: boolean;
+  isActive: boolean;
+  notes?: string;
+}
+
+export interface ProviderModelEnriched extends ProviderModel {
+  provider: Provider | null;
+  model: Model | null;
+}
